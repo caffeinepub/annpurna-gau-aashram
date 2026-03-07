@@ -1,22 +1,14 @@
 import Map "mo:core/Map";
-import Array "mo:core/Array";
-import List "mo:core/List";
+import Iter "mo:core/Iter";
 import Nat "mo:core/Nat";
 import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
-import Order "mo:core/Order";
-import Text "mo:core/Text";
 import Float "mo:core/Float";
-import Iter "mo:core/Iter";
 import Int "mo:core/Int";
-import VarArray "mo:core/VarArray";
+import Migration "migration";
 
+(with migration = Migration.run)
 actor {
-  module Cow {
-    public func compareById(cow1 : Cow, cow2 : Cow) : Order.Order {
-      Nat.compare(cow1.id, cow2.id);
-    };
-  };
   type Cow = {
     id : Nat;
     name : Text;
@@ -27,11 +19,6 @@ actor {
     addedDate : Time.Time;
   };
 
-  module Donation {
-    public func compare(donation1 : Donation, donation2 : Donation) : Order.Order {
-      Nat.compare(donation1.id, donation2.id);
-    };
-  };
   type Donation = {
     id : Nat;
     donorName : Text;
@@ -41,11 +28,6 @@ actor {
     purpose : Text;
   };
 
-  module HealthRecord {
-    public func compareByDate(record1 : HealthRecord, record2 : HealthRecord) : Order.Order {
-      Int.compare(record1.date, record2.date);
-    };
-  };
   type HealthRecord = {
     id : Nat;
     cowId : Nat;
@@ -65,15 +47,6 @@ actor {
     isActive : Bool;
   };
 
-  type DashboardStats = {
-    totalCows : Nat;
-    healthyCount : Nat;
-    sickCount : Nat;
-    recoveredCount : Nat;
-    totalDonations : Float;
-    uniqueDonorsCount : Nat;
-  };
-
   let cows = Map.empty<Nat, Cow>();
   let donations = Map.empty<Nat, Donation>();
   let healthRecords = Map.empty<Nat, HealthRecord>();
@@ -88,7 +61,6 @@ actor {
   public shared ({ caller }) func addCow(name : Text, breed : Text, age : Nat, healthStatus : Text, description : Text) : async Nat {
     let id = cowIdCounter;
     cowIdCounter += 1;
-
     let cow : Cow = {
       id;
       name;
@@ -98,7 +70,6 @@ actor {
       description;
       addedDate = Time.now();
     };
-
     cows.add(id, cow);
     id;
   };
@@ -143,7 +114,6 @@ actor {
   public shared ({ caller }) func addDonation(donorName : Text, amount : Float, message : Text, purpose : Text) : async Nat {
     let id = donationIdCounter;
     donationIdCounter += 1;
-
     let donation : Donation = {
       id;
       donorName;
@@ -152,7 +122,6 @@ actor {
       message;
       purpose;
     };
-
     donations.add(id, donation);
     id;
   };
@@ -165,7 +134,7 @@ actor {
   };
 
   public query ({ caller }) func getAllDonations() : async [Donation] {
-    donations.values().toArray().sort();
+    donations.values().toArray();
   };
 
   // HealthRecord CRUD
@@ -173,10 +142,8 @@ actor {
     if (not cows.containsKey(cowId)) {
       Runtime.trap("Cow not found");
     };
-
     let id = healthRecordIdCounter;
     healthRecordIdCounter += 1;
-
     let record : HealthRecord = {
       id;
       cowId;
@@ -185,7 +152,6 @@ actor {
       status;
       vetName;
     };
-
     healthRecords.add(id, record);
     id;
   };
@@ -198,14 +164,14 @@ actor {
   };
 
   public query ({ caller }) func getHealthRecordsByCow(cowId : Nat) : async [HealthRecord] {
-    healthRecords.values().filter(func(record) { record.cowId == cowId }).toArray().sort(HealthRecord.compareByDate);
+    let iter = healthRecords.values();
+    iter.filter(func(record) { record.cowId == cowId }).toArray();
   };
 
   // Announcement CRUD
   public shared ({ caller }) func addAnnouncement(title : Text, titleHindi : Text, content : Text, contentHindi : Text, isActive : Bool) : async Nat {
     let id = announcementIdCounter;
     announcementIdCounter += 1;
-
     let announcement : Announcement = {
       id;
       title;
@@ -215,7 +181,6 @@ actor {
       date = Time.now();
       isActive;
     };
-
     announcements.add(id, announcement);
     id;
   };
@@ -228,6 +193,8 @@ actor {
   };
 
   public query ({ caller }) func getActiveAnnouncements() : async [Announcement] {
-    announcements.values().filter(func(a) { a.isActive }).toArray();
+    let iter = announcements.values();
+    iter.filter(func(a) { a.isActive }).toArray();
   };
 };
+

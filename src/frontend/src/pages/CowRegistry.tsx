@@ -47,7 +47,12 @@ import {
   useUpdateCow,
 } from "../hooks/useQueries";
 import { useLang } from "../lib/LanguageContext";
-import { formatTime } from "../utils/timeUtils";
+import {
+  calcAgeFromBirth,
+  decodeBirthDate,
+  encodeBirthDate,
+  formatTime,
+} from "../utils/timeUtils";
 
 interface CowRegistryProps {
   onViewHealth: (id: bigint) => void;
@@ -56,10 +61,42 @@ interface CowRegistryProps {
 const defaultForm = {
   name: "",
   breed: "",
-  age: "",
+  birthMonth: "",
+  birthYear: "",
   healthStatus: "Healthy",
+  prakar: "none",
   description: "",
 };
+
+const MONTH_NAMES_EN = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const MONTH_NAMES_HI = [
+  "जनवरी",
+  "फरवरी",
+  "मार्च",
+  "अप्रैल",
+  "मई",
+  "जून",
+  "जुलाई",
+  "अगस्त",
+  "सितंबर",
+  "अक्टूबर",
+  "नवंबर",
+  "दिसंबर",
+];
 
 export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
   const { t, lang } = useLang();
@@ -74,6 +111,12 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
   const [deleteId, setDeleteId] = useState<bigint | null>(null);
   const [form, setForm] = useState(defaultForm);
 
+  const currentYear = new Date().getFullYear();
+  const yearOptions: number[] = [];
+  for (let y = currentYear; y >= 1990; y--) {
+    yearOptions.push(y);
+  }
+
   const filtered = cows.filter(
     (c) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -86,13 +129,30 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
     setDialogOpen(true);
   }
 
+  const prakarValues = [
+    "Lactating",
+    "Pregnant",
+    "Dry",
+    "Bull",
+    "Calf-F",
+    "Calf-M",
+    "Retired",
+    "Retired-Bull",
+  ];
+
   function openEdit(cow: Cow) {
     setEditCow(cow);
+    const decoded = decodeBirthDate(cow.age);
+    const isPrakar = prakarValues.includes(cow.healthStatus);
     setForm({
       name: cow.name,
       breed: cow.breed,
-      age: cow.age.toString(),
-      healthStatus: cow.healthStatus,
+      birthMonth: decoded ? decoded.month.toString() : "1",
+      birthYear: decoded
+        ? decoded.year.toString()
+        : cow.age.toString().slice(0, 4) || currentYear.toString(),
+      healthStatus: isPrakar ? "Healthy" : cow.healthStatus,
+      prakar: isPrakar ? cow.healthStatus : "none",
       description: cow.description,
     });
     setDialogOpen(true);
@@ -100,7 +160,13 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const age = BigInt(Number.parseInt(form.age) || 0);
+    const age = encodeBirthDate(
+      Number.parseInt(form.birthYear) || currentYear,
+      Number.parseInt(form.birthMonth) || 1,
+    );
+    // If prakar is selected (and not "none"), store that as healthStatus in backend
+    const prakarVal = form.prakar === "none" ? "" : form.prakar;
+    const finalStatus = prakarVal || form.healthStatus;
     try {
       if (editCow) {
         await updateCow.mutateAsync({
@@ -108,7 +174,7 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
           name: form.name,
           breed: form.breed,
           age,
-          healthStatus: form.healthStatus,
+          healthStatus: finalStatus,
           description: form.description,
         });
         toast.success(t("cowUpdated"));
@@ -117,7 +183,7 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
           name: form.name,
           breed: form.breed,
           age,
-          healthStatus: form.healthStatus,
+          healthStatus: finalStatus,
           description: form.description,
         });
         toast.success(t("cowAdded"));
@@ -143,10 +209,29 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
 
   function getStatusClass(status: string) {
     const s = status.toLowerCase();
-    if (s === "healthy") return "status-healthy";
+    if (s === "healthy" || s === "lactating") return "status-healthy";
     if (s === "sick") return "status-sick";
     return "status-recovering";
   }
+
+  // Swasthya Stithi - sirf 3 options
+  const healthStatusOptions = [
+    { value: "Healthy", en: "Healthy", hi: "स्वस्थ" },
+    { value: "Recovering", en: "Recovering", hi: "स्वस्थ हो रही है" },
+    { value: "Sick", en: "Sick", hi: "बीमार" },
+  ];
+
+  // Prakar (Type) dropdown - all category options
+  const prakarOptions = [
+    { value: "Lactating", en: "Lactating (दूजनी)", hi: "दूजनी" },
+    { value: "Pregnant", en: "Pregnant (गाभिन)", hi: "गाभिन" },
+    { value: "Dry", en: "Dry (वसुकी)", hi: "वसुकी" },
+    { value: "Bull", en: "Bull (नंदी)", hi: "नंदी" },
+    { value: "Calf-F", en: "Calf-F (बछड़ी)", hi: "बछड़ी" },
+    { value: "Calf-M", en: "Calf-M (बछड़ा)", hi: "बछड़ा" },
+    { value: "Retired", en: "Retired Gay (निवृत्त गाय)", hi: "निवृत्त गाय" },
+    { value: "Retired-Bull", en: "Retired Nandi (निवृत्त नंदी)", hi: "निवृत्त नंदी" },
+  ];
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
@@ -265,7 +350,7 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
                       {cow.breed}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
-                      {cow.age.toString()} yr
+                      {calcAgeFromBirth(cow.age).display(lang)}
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -341,7 +426,7 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
                         {cow.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {cow.breed} · {cow.age.toString()} yr
+                        {cow.breed} · {calcAgeFromBirth(cow.age).display(lang)}
                       </p>
                     </div>
                   </div>
@@ -415,48 +500,106 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
                 }
               />
             </div>
+            <div className="space-y-1.5">
+              <Label>{t("breed")} *</Label>
+              <Input
+                required
+                placeholder={t("breed")}
+                value={form.breed}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, breed: e.target.value }))
+                }
+              />
+            </div>
+            {/* Birth Month + Birth Year */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>{t("breed")} *</Label>
-                <Input
-                  required
-                  placeholder={t("breed")}
-                  value={form.breed}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, breed: e.target.value }))
+                <Label>{t("birthMonth")}</Label>
+                <Select
+                  value={form.birthMonth}
+                  onValueChange={(v) =>
+                    setForm((p) => ({ ...p, birthMonth: v }))
                   }
-                />
+                >
+                  <SelectTrigger data-ocid="cow.form.birthmonth.select">
+                    <SelectValue
+                      placeholder={lang === "hi" ? "महीना" : "Month"}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTH_NAMES_EN.map((name, i) => (
+                      <SelectItem key={name} value={(i + 1).toString()}>
+                        {i + 1} - {lang === "hi" ? MONTH_NAMES_HI[i] : name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
-                <Label>{t("age")}</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                  value={form.age}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, age: e.target.value }))
+                <Label>{t("birthYear")}</Label>
+                <Select
+                  value={form.birthYear}
+                  onValueChange={(v) =>
+                    setForm((p) => ({ ...p, birthYear: v }))
                   }
-                />
+                >
+                  <SelectTrigger data-ocid="cow.form.birthyear.select">
+                    <SelectValue placeholder={lang === "hi" ? "वर्ष" : "Year"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {yearOptions.map((y) => (
+                      <SelectItem key={y} value={y.toString()}>
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>{t("healthStatus")}</Label>
-              <Select
-                value={form.healthStatus}
-                onValueChange={(v) =>
-                  setForm((p) => ({ ...p, healthStatus: v }))
-                }
-              >
-                <SelectTrigger data-ocid="cow.form.select">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Healthy">{t("healthy")}</SelectItem>
-                  <SelectItem value="Sick">{t("sick")}</SelectItem>
-                  <SelectItem value="Recovering">{t("recovering")}</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>{t("healthStatus")}</Label>
+                <Select
+                  value={form.healthStatus}
+                  onValueChange={(v) =>
+                    setForm((p) => ({ ...p, healthStatus: v }))
+                  }
+                >
+                  <SelectTrigger data-ocid="cow.form.select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {healthStatusOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {lang === "hi" ? opt.hi : opt.en}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{lang === "hi" ? "प्रकार" : "Type"}</Label>
+                <Select
+                  value={form.prakar}
+                  onValueChange={(v) => setForm((p) => ({ ...p, prakar: v }))}
+                >
+                  <SelectTrigger data-ocid="cow.form.prakar.select">
+                    <SelectValue
+                      placeholder={lang === "hi" ? "प्रकार चुनें" : "Select type"}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">
+                      {lang === "hi" ? "— कोई नहीं —" : "— None —"}
+                    </SelectItem>
+                    {prakarOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {lang === "hi" ? opt.hi : opt.en}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label>{t("description")}</Label>
