@@ -8,6 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,21 +30,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
+  Baby,
+  Calendar,
   PawPrint as CowIcon,
   Eye,
   Pencil,
   Plus,
+  QrCode,
   Search,
+  Tag,
   Trash2,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import type { Cow } from "../backend.d";
+import type { Calf, Cow } from "../backend.d";
 import {
+  useAddCalf,
   useAddCow,
+  useDeleteCalf,
   useDeleteCow,
   useGetAllCows,
+  useGetCalvesByCow,
   useUpdateCow,
 } from "../hooks/useQueries";
 import { useLang } from "../lib/LanguageContext";
@@ -56,6 +64,8 @@ import {
 
 interface CowRegistryProps {
   onViewHealth: (id: bigint) => void;
+  prakarFilter?: string | null;
+  onClearPrakarFilter?: () => void;
 }
 
 const defaultForm = {
@@ -66,6 +76,16 @@ const defaultForm = {
   healthStatus: "Healthy",
   prakar: "none",
   description: "",
+  tagNumber: "",
+  qrCode: "",
+};
+
+const defaultCalfForm = {
+  birthMonth: "",
+  birthYear: "",
+  gender: "bachdi",
+  tagNumber: "",
+  notes: "",
 };
 
 const MONTH_NAMES_EN = [
@@ -98,18 +118,159 @@ const MONTH_NAMES_HI = [
   "दिसंबर",
 ];
 
-export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
+// Map from prakar chip value to healthStatus stored in backend
+const prakarToStatus: Record<string, string> = {
+  Lactating: "Lactating",
+  Pregnant: "Pregnant",
+  Dry: "Dry",
+  Bull: "Bull",
+  "Calf-F": "Calf-F",
+  "Calf-M": "Calf-M",
+  Retired: "Retired",
+  "Retired-Bull": "Retired-Bull",
+};
+
+// Prakar chip display labels
+const prakarChips = [
+  { value: "Lactating", en: "Lactating", hi: "दूजनी" },
+  { value: "Pregnant", en: "Pregnant", hi: "गाभिन" },
+  { value: "Dry", en: "Dry", hi: "वसुकी" },
+  { value: "Bull", en: "Bull", hi: "नंदी" },
+  { value: "Calf-F", en: "Calf-F", hi: "बछड़ी" },
+  { value: "Calf-M", en: "Calf-M", hi: "बछड़ा" },
+  { value: "Retired", en: "Retired", hi: "निवृत्त गाय" },
+  { value: "Retired-Bull", en: "Retired Nandi", hi: "निवृत्त नंदी" },
+];
+
+// Color map per prakar for card accents
+const prakarColors: Record<
+  string,
+  { bg: string; badge: string; border: string; badgeText: string }
+> = {
+  Lactating: {
+    bg: "bg-amber-50",
+    badge: "bg-amber-100 text-amber-800",
+    border: "border-l-amber-400",
+    badgeText: "दूजनी",
+  },
+  Pregnant: {
+    bg: "bg-rose-50",
+    badge: "bg-rose-100 text-rose-800",
+    border: "border-l-rose-400",
+    badgeText: "गाभिन",
+  },
+  Dry: {
+    bg: "bg-lime-50",
+    badge: "bg-lime-100 text-lime-800",
+    border: "border-l-lime-400",
+    badgeText: "वसुकी",
+  },
+  Bull: {
+    bg: "bg-sky-50",
+    badge: "bg-sky-100 text-sky-800",
+    border: "border-l-sky-400",
+    badgeText: "नंदी",
+  },
+  "Calf-F": {
+    bg: "bg-yellow-50",
+    badge: "bg-yellow-100 text-yellow-800",
+    border: "border-l-yellow-400",
+    badgeText: "बछड़ी",
+  },
+  "Calf-M": {
+    bg: "bg-blue-50",
+    badge: "bg-blue-100 text-blue-800",
+    border: "border-l-blue-400",
+    badgeText: "बछड़ा",
+  },
+  Retired: {
+    bg: "bg-pink-50",
+    badge: "bg-pink-100 text-pink-800",
+    border: "border-l-pink-400",
+    badgeText: "निवृत्त गाय",
+  },
+  "Retired-Bull": {
+    bg: "bg-purple-50",
+    badge: "bg-purple-100 text-purple-800",
+    border: "border-l-purple-400",
+    badgeText: "निवृत्त नंदी",
+  },
+  Healthy: {
+    bg: "bg-green-50",
+    badge: "bg-green-100 text-green-800",
+    border: "border-l-green-400",
+    badgeText: "स्वस्थ",
+  },
+  Sick: {
+    bg: "bg-red-50",
+    badge: "bg-red-100 text-red-800",
+    border: "border-l-red-400",
+    badgeText: "बीमार",
+  },
+  Recovering: {
+    bg: "bg-teal-50",
+    badge: "bg-teal-100 text-teal-800",
+    border: "border-l-teal-400",
+    badgeText: "स्वस्थ हो रही है",
+  },
+};
+
+function getPrakarColors(status: string) {
+  return (
+    prakarColors[status] ?? {
+      bg: "bg-muted/40",
+      badge: "bg-muted text-muted-foreground",
+      border: "border-l-muted",
+      badgeText: status,
+    }
+  );
+}
+
+function getPrakarLabel(status: string, lang: "en" | "hi") {
+  const chip = prakarChips.find((c) => c.value === status);
+  if (chip) return lang === "hi" ? chip.hi : chip.en;
+  // health statuses
+  if (status === "Healthy") return lang === "hi" ? "स्वस्थ" : "Healthy";
+  if (status === "Sick") return lang === "hi" ? "बीमार" : "Sick";
+  if (status === "Recovering")
+    return lang === "hi" ? "स्वस्थ हो रही है" : "Recovering";
+  return status;
+}
+
+export default function CowRegistry({
+  onViewHealth,
+  prakarFilter,
+  onClearPrakarFilter,
+}: CowRegistryProps) {
   const { t, lang } = useLang();
   const { data: cows = [], isLoading } = useGetAllCows();
   const addCow = useAddCow();
   const updateCow = useUpdateCow();
   const deleteCow = useDeleteCow();
+  const addCalf = useAddCalf();
+  const deleteCalf = useDeleteCalf();
 
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editCow, setEditCow] = useState<Cow | null>(null);
   const [deleteId, setDeleteId] = useState<bigint | null>(null);
   const [form, setForm] = useState(defaultForm);
+  const [activePrakar, setActivePrakar] = useState<string | null>(
+    prakarFilter ?? null,
+  );
+  // Calves dialog state
+  const [calvesCow, setCalvesCow] = useState<Cow | null>(null);
+  const [calfForm, setCalfForm] = useState(defaultCalfForm);
+  const { data: calves = [], isLoading: calvesLoading } = useGetCalvesByCow(
+    calvesCow?.id ?? null,
+  );
+
+  // Sync external prakar filter prop → local state
+  useEffect(() => {
+    if (prakarFilter !== undefined) {
+      setActivePrakar(prakarFilter);
+    }
+  }, [prakarFilter]);
 
   const currentYear = new Date().getFullYear();
   const yearOptions: number[] = [];
@@ -117,10 +278,20 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
     yearOptions.push(y);
   }
 
-  const filtered = cows.filter(
-    (c) =>
+  // Filter by search + active prakar
+  const filtered = cows.filter((c) => {
+    const matchSearch =
       c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.breed.toLowerCase().includes(search.toLowerCase()),
+      c.breed.toLowerCase().includes(search.toLowerCase());
+    const matchPrakar = activePrakar
+      ? c.healthStatus === prakarToStatus[activePrakar]
+      : true;
+    return matchSearch && matchPrakar;
+  });
+
+  // Which prakar chips have at least 1 cow
+  const activePrakarChips = prakarChips.filter((chip) =>
+    cows.some((c) => c.healthStatus === chip.value),
   );
 
   function openAdd() {
@@ -154,6 +325,8 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
       healthStatus: isPrakar ? "Healthy" : cow.healthStatus,
       prakar: isPrakar ? cow.healthStatus : "none",
       description: cow.description,
+      tagNumber: cow.tagNumber ?? "",
+      qrCode: cow.qrCode ?? "",
     });
     setDialogOpen(true);
   }
@@ -164,7 +337,6 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
       Number.parseInt(form.birthYear) || currentYear,
       Number.parseInt(form.birthMonth) || 1,
     );
-    // If prakar is selected (and not "none"), store that as healthStatus in backend
     const prakarVal = form.prakar === "none" ? "" : form.prakar;
     const finalStatus = prakarVal || form.healthStatus;
     try {
@@ -176,6 +348,8 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
           age,
           healthStatus: finalStatus,
           description: form.description,
+          tagNumber: form.tagNumber,
+          qrCode: form.qrCode,
         });
         toast.success(t("cowUpdated"));
       } else {
@@ -185,6 +359,8 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
           age,
           healthStatus: finalStatus,
           description: form.description,
+          tagNumber: form.tagNumber,
+          qrCode: form.qrCode,
         });
         toast.success(t("cowAdded"));
       }
@@ -205,14 +381,41 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
     }
   }
 
-  const isPending = addCow.isPending || updateCow.isPending;
-
-  function getStatusClass(status: string) {
-    const s = status.toLowerCase();
-    if (s === "healthy" || s === "lactating") return "status-healthy";
-    if (s === "sick") return "status-sick";
-    return "status-recovering";
+  async function handleAddCalf(e: React.FormEvent) {
+    e.preventDefault();
+    if (!calvesCow) return;
+    if (!calfForm.birthMonth || !calfForm.birthYear) {
+      toast.error(
+        lang === "hi" ? "जन्म महीना और वर्ष भरें" : "Enter birth month and year",
+      );
+      return;
+    }
+    try {
+      await addCalf.mutateAsync({
+        cowId: calvesCow.id,
+        birthMonth: BigInt(calfForm.birthMonth),
+        birthYear: BigInt(calfForm.birthYear),
+        gender: calfForm.gender,
+        tagNumber: calfForm.tagNumber,
+        notes: calfForm.notes,
+      });
+      toast.success(t("calfAdded"));
+      setCalfForm(defaultCalfForm);
+    } catch {
+      toast.error(t("error"));
+    }
   }
+
+  async function handleDeleteCalf(id: bigint) {
+    try {
+      await deleteCalf.mutateAsync(id);
+      toast.success(t("calfDeleted"));
+    } catch {
+      toast.error(t("error"));
+    }
+  }
+
+  const isPending = addCow.isPending || updateCow.isPending;
 
   // Swasthya Stithi - sirf 3 options
   const healthStatusOptions = [
@@ -221,7 +424,7 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
     { value: "Sick", en: "Sick", hi: "बीमार" },
   ];
 
-  // Prakar (Type) dropdown - all category options
+  // Prakar (Type) dropdown
   const prakarOptions = [
     { value: "Lactating", en: "Lactating (दूजनी)", hi: "दूजनी" },
     { value: "Pregnant", en: "Pregnant (गाभिन)", hi: "गाभिन" },
@@ -232,6 +435,13 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
     { value: "Retired", en: "Retired Gay (निवृत्त गाय)", hi: "निवृत्त गाय" },
     { value: "Retired-Bull", en: "Retired Nandi (निवृत्त नंदी)", hi: "निवृत्त नंदी" },
   ];
+
+  function handlePrakarChipClick(value: string | null) {
+    setActivePrakar(value);
+    if (value === null && onClearPrakarFilter) {
+      onClearPrakarFilter();
+    }
+  }
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto">
@@ -259,7 +469,7 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
       </div>
 
       {/* Search */}
-      <div className="relative mb-5">
+      <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           data-ocid="cow.search_input"
@@ -269,6 +479,45 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
           className="pl-9"
         />
       </div>
+
+      {/* Prakar Filter Chips */}
+      {!isLoading && (
+        <div className="flex flex-wrap gap-2 mb-5" data-ocid="cow.filter.panel">
+          <button
+            type="button"
+            data-ocid="cow.filter.tab"
+            onClick={() => handlePrakarChipClick(null)}
+            className={cn(
+              "px-3 py-1 rounded-full text-xs font-semibold border transition-all",
+              activePrakar === null
+                ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                : "bg-muted/60 text-muted-foreground border-border hover:bg-muted",
+            )}
+          >
+            {lang === "hi" ? "सभी" : "All"}
+          </button>
+          {activePrakarChips.map((chip) => (
+            <button
+              key={chip.value}
+              type="button"
+              data-ocid="cow.filter.tab"
+              onClick={() =>
+                handlePrakarChipClick(
+                  chip.value === activePrakar ? null : chip.value,
+                )
+              }
+              className={cn(
+                "px-3 py-1 rounded-full text-xs font-semibold border transition-all",
+                activePrakar === chip.value
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : "bg-muted/60 text-muted-foreground border-border hover:bg-muted",
+              )}
+            >
+              {lang === "hi" ? chip.hi : chip.en}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Table / Cards */}
       {isLoading ? (
@@ -309,7 +558,7 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
                     {t("age")}
                   </th>
                   <th className="text-left px-4 py-3 font-semibold text-foreground">
-                    {t("healthStatus")}
+                    {lang === "hi" ? "प्रकार" : "Type"}
                   </th>
                   <th className="text-left px-4 py-3 font-semibold text-foreground">
                     {t("addedDate")}
@@ -320,161 +569,274 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((cow, idx) => (
-                  <motion.tr
-                    key={cow.id.toString()}
-                    data-ocid={`cow.item.${idx + 1}`}
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.04 }}
-                    className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-accent/40 flex items-center justify-center flex-shrink-0">
-                          <span className="text-xs font-bold text-accent-foreground">
-                            {cow.name.charAt(0).toUpperCase()}
-                          </span>
+                {filtered.map((cow, idx) => {
+                  const colors = getPrakarColors(cow.healthStatus);
+                  return (
+                    <motion.tr
+                      key={cow.id.toString()}
+                      data-ocid={`cow.item.${idx + 1}`}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.04 }}
+                      className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={cn(
+                              "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
+                              colors.bg,
+                            )}
+                          >
+                            <span className="text-xs font-bold">
+                              {cow.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-medium text-foreground">
+                                {cow.name}
+                              </p>
+                              {cow.tagNumber && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1.5 py-0 h-4 bg-yellow-50 text-yellow-700 border-yellow-300 gap-0.5"
+                                >
+                                  <Tag className="h-2.5 w-2.5" />
+                                  {cow.tagNumber}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground line-clamp-1">
+                              {cow.description}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground">
-                            {cow.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground line-clamp-1">
-                            {cow.description}
-                          </p>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {cow.breed}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {calcAgeFromBirth(cow.age).display(lang)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={cn(
+                            "text-xs px-2.5 py-1 rounded-full font-medium",
+                            colors.badge,
+                          )}
+                        >
+                          {getPrakarLabel(cow.healthStatus, lang)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                        {formatTime(cow.addedDate, lang)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
+                            onClick={() => onViewHealth(cow.id)}
+                            title={t("viewHealth")}
+                            data-ocid={`cow.secondary_button.${idx + 1}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-pink-500"
+                            onClick={() => {
+                              setCalvesCow(cow);
+                              setCalfForm(defaultCalfForm);
+                            }}
+                            title={t("viewCalves")}
+                            data-ocid={`cow.calves_button.${idx + 1}`}
+                          >
+                            <Baby className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
+                            onClick={() => openEdit(cow)}
+                            data-ocid={`cow.edit_button.${idx + 1}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => setDeleteId(cow.id)}
+                            data-ocid={`cow.delete_button.${idx + 1}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {cow.breed}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {calcAgeFromBirth(cow.age).display(lang)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={cn(
-                          "text-xs px-2.5 py-1 rounded-full font-medium",
-                          getStatusClass(cow.healthStatus),
-                        )}
-                      >
-                        {cow.healthStatus}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs">
-                      {formatTime(cow.addedDate, lang)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
-                          onClick={() => onViewHealth(cow.id)}
-                          title={t("viewHealth")}
-                          data-ocid={`cow.secondary_button.${idx + 1}`}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
-                          onClick={() => openEdit(cow)}
-                          data-ocid={`cow.edit_button.${idx + 1}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => setDeleteId(cow.id)}
-                          data-ocid={`cow.delete_button.${idx + 1}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
+                      </td>
+                    </motion.tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
-          {/* Mobile cards */}
+          {/* Mobile cards — reference image-2 style */}
           <div className="md:hidden space-y-3">
-            {filtered.map((cow, idx) => (
-              <motion.div
-                key={cow.id.toString()}
-                data-ocid={`cow.item.${idx + 1}`}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className="bg-card border border-border rounded-xl p-4 shadow-xs"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-9 h-9 rounded-full bg-accent/40 flex items-center justify-center">
-                      <span className="text-sm font-bold text-accent-foreground">
+            {filtered.map((cow, idx) => {
+              const colors = getPrakarColors(cow.healthStatus);
+              const birthDecoded = decodeBirthDate(cow.age);
+              const birthLabel = birthDecoded
+                ? `${MONTH_NAMES_HI[birthDecoded.month - 1]} ${birthDecoded.year}`
+                : null;
+              return (
+                <motion.div
+                  key={cow.id.toString()}
+                  data-ocid={`cow.item.${idx + 1}`}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className={cn(
+                    "border border-border rounded-xl shadow-sm overflow-hidden",
+                    "border-l-4",
+                    colors.border,
+                  )}
+                >
+                  {/* Card top: avatar + name + badges + actions */}
+                  <div
+                    className={cn(
+                      "flex items-start gap-3 p-3.5 pb-2",
+                      colors.bg,
+                    )}
+                  >
+                    {/* Avatar */}
+                    <div className="w-11 h-11 rounded-full bg-white/80 border border-white shadow-sm flex items-center justify-center flex-shrink-0">
+                      <span className="text-lg font-bold text-foreground/70">
                         {cow.name.charAt(0).toUpperCase()}
                       </span>
                     </div>
-                    <div>
-                      <p className="font-semibold text-foreground">
-                        {cow.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {cow.breed} · {calcAgeFromBirth(cow.age).display(lang)}
-                      </p>
+
+                    {/* Name + badges */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-bold text-foreground text-base leading-tight">
+                          {cow.name}
+                        </p>
+                        {/* Edit + Delete icons */}
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(cow)}
+                            data-ocid={`cow.edit_button.${idx + 1}`}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-white/60 transition-colors"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteId(cow.id)}
+                            data-ocid={`cow.delete_button.${idx + 1}`}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-white/60 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                      {/* Badges row */}
+                      <div className="flex flex-wrap gap-1.5 mt-1.5">
+                        {cow.tagNumber ? (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 h-5 bg-yellow-50 text-yellow-700 border-yellow-300 gap-1"
+                          >
+                            <Tag className="h-2.5 w-2.5" />
+                            TAG: {cow.tagNumber}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 h-5 bg-yellow-50 text-yellow-700 border-yellow-300 gap-1"
+                          >
+                            <Tag className="h-2.5 w-2.5" />#{cow.id.toString()}
+                          </Badge>
+                        )}
+                        <span
+                          className={cn(
+                            "text-[10px] px-2 py-0.5 rounded-full font-semibold",
+                            colors.badge,
+                          )}
+                        >
+                          {getPrakarLabel(cow.healthStatus, lang)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <span
-                    className={cn(
-                      "text-xs px-2 py-0.5 rounded-full font-medium",
-                      getStatusClass(cow.healthStatus),
+
+                  {/* Card body: details */}
+                  <div className="bg-white px-3.5 py-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                    {birthLabel && (
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Calendar className="h-3 w-3 flex-shrink-0" />
+                        <span className="font-medium text-foreground/70">
+                          {lang === "hi" ? "जन्म:" : "Born:"}
+                        </span>
+                        <span>{birthLabel}</span>
+                      </div>
                     )}
-                  >
-                    {cow.healthStatus}
-                  </span>
-                </div>
-                {cow.description && (
-                  <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
-                    {cow.description}
-                  </p>
-                )}
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1 text-xs h-7"
-                    onClick={() => onViewHealth(cow.id)}
-                  >
-                    <Eye className="h-3 w-3" />
-                    {t("viewHealth")}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1 text-xs h-7"
-                    onClick={() => openEdit(cow)}
-                    data-ocid={`cow.edit_button.${idx + 1}`}
-                  >
-                    <Pencil className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1 text-xs h-7 text-destructive hover:text-destructive"
-                    onClick={() => setDeleteId(cow.id)}
-                    data-ocid={`cow.delete_button.${idx + 1}`}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </motion.div>
-            ))}
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <CowIcon className="h-3 w-3 flex-shrink-0" />
+                      <span className="font-medium text-foreground/70">
+                        {lang === "hi" ? "उम्र:" : "Age:"}
+                      </span>
+                      <span>{calcAgeFromBirth(cow.age).display(lang)}</span>
+                    </div>
+                    {cow.breed && (
+                      <div className="flex items-center gap-1.5 text-muted-foreground col-span-2">
+                        <span className="font-medium text-foreground/70">
+                          {lang === "hi" ? "नस्ल:" : "Breed:"}
+                        </span>
+                        <span>{cow.breed}</span>
+                      </div>
+                    )}
+                    {cow.description && (
+                      <div className="col-span-2 text-muted-foreground line-clamp-1">
+                        {cow.description}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card footer: view health + calves buttons */}
+                  <div className="bg-muted/20 border-t border-border/50 px-3.5 py-2 flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 text-xs h-7 flex-1"
+                      onClick={() => onViewHealth(cow.id)}
+                      data-ocid={`cow.secondary_button.${idx + 1}`}
+                    >
+                      <Eye className="h-3 w-3" />
+                      {t("viewHealth")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 text-xs h-7 flex-1 border-pink-200 text-pink-700 hover:bg-pink-50"
+                      onClick={() => {
+                        setCalvesCow(cow);
+                        setCalfForm(defaultCalfForm);
+                      }}
+                      data-ocid={`cow.calves_button.${idx + 1}`}
+                    >
+                      <Baby className="h-3 w-3" />
+                      {t("viewCalves")}
+                    </Button>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         </>
       )}
@@ -601,6 +963,44 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
                 </Select>
               </div>
             </div>
+            {/* Tag Number + QR Code */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5">
+                  <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+                  {t("tagNumber")}
+                </Label>
+                <Input
+                  data-ocid="cow.form.tag_input"
+                  placeholder={lang === "hi" ? "टैग नंबर / Tag No." : "Tag No."}
+                  value={form.tagNumber}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, tagNumber: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5">
+                  <QrCode className="h-3.5 w-3.5 text-muted-foreground" />
+                  {t("qrCode")}
+                </Label>
+                <Input
+                  data-ocid="cow.form.qr_input"
+                  placeholder={
+                    lang === "hi" ? "QR/Barcode ID" : "QR/Barcode ID"
+                  }
+                  value={form.qrCode}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, qrCode: e.target.value }))
+                  }
+                />
+                <p className="text-[10px] text-muted-foreground leading-tight">
+                  {lang === "hi"
+                    ? "पहली बार स्कैन से या manually भरें"
+                    : "Enter manually or scan QR"}
+                </p>
+              </div>
+            </div>
             <div className="space-y-1.5">
               <Label>{t("description")}</Label>
               <Textarea
@@ -661,6 +1061,262 @@ export default function CowRegistry({ onViewHealth }: CowRegistryProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Calves Dialog */}
+      <Dialog
+        open={calvesCow !== null}
+        onOpenChange={(o) => {
+          if (!o) setCalvesCow(null);
+        }}
+      >
+        <DialogContent
+          className="max-w-lg max-h-[90vh] overflow-y-auto"
+          data-ocid="cow.calves.dialog"
+        >
+          <DialogHeader>
+            <DialogTitle className="font-display flex items-center gap-2">
+              <Baby className="h-5 w-5 text-pink-500" />
+              {calvesCow
+                ? lang === "hi"
+                  ? `${calvesCow.name} के बच्चे`
+                  : `${calvesCow.name}'s Calves`
+                : t("calves")}
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Add Calf Form */}
+          <form
+            onSubmit={handleAddCalf}
+            className="space-y-3 border border-border rounded-xl p-4 bg-muted/20"
+          >
+            <p className="text-sm font-semibold text-foreground">
+              {t("addCalf")}
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("birthMonth")}</Label>
+                <Select
+                  value={calfForm.birthMonth}
+                  onValueChange={(v) =>
+                    setCalfForm((p) => ({ ...p, birthMonth: v }))
+                  }
+                >
+                  <SelectTrigger
+                    data-ocid="calf.form.birthmonth.select"
+                    className="h-8 text-xs"
+                  >
+                    <SelectValue
+                      placeholder={lang === "hi" ? "महीना" : "Month"}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTH_NAMES_EN.map((name, i) => (
+                      <SelectItem key={name} value={(i + 1).toString()}>
+                        {i + 1} - {lang === "hi" ? MONTH_NAMES_HI[i] : name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("birthYear")}</Label>
+                <Select
+                  value={calfForm.birthYear}
+                  onValueChange={(v) =>
+                    setCalfForm((p) => ({ ...p, birthYear: v }))
+                  }
+                >
+                  <SelectTrigger
+                    data-ocid="calf.form.birthyear.select"
+                    className="h-8 text-xs"
+                  >
+                    <SelectValue placeholder={lang === "hi" ? "वर्ष" : "Year"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {yearOptions.map((y) => (
+                      <SelectItem key={y} value={y.toString()}>
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">{t("gender")}</Label>
+                <Select
+                  value={calfForm.gender}
+                  onValueChange={(v) =>
+                    setCalfForm((p) => ({ ...p, gender: v }))
+                  }
+                >
+                  <SelectTrigger
+                    data-ocid="calf.form.gender.select"
+                    className="h-8 text-xs"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bachdi">
+                      {lang === "hi" ? "बछड़ी (मादा)" : "Bachdi (Female)"}
+                    </SelectItem>
+                    <SelectItem value="bachda">
+                      {lang === "hi" ? "बछड़ा (नर)" : "Bachda (Male)"}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs flex items-center gap-1">
+                  <Tag className="h-3 w-3" />
+                  {t("tagNumber")}
+                </Label>
+                <Input
+                  data-ocid="calf.form.tag_input"
+                  className="h-8 text-xs"
+                  placeholder={lang === "hi" ? "टैग (वैकल्पिक)" : "Tag (optional)"}
+                  value={calfForm.tagNumber}
+                  onChange={(e) =>
+                    setCalfForm((p) => ({ ...p, tagNumber: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">{t("notes")}</Label>
+              <Input
+                data-ocid="calf.form.notes_input"
+                className="h-8 text-xs"
+                placeholder={
+                  lang === "hi" ? "नोट्स (वैकल्पिक)" : "Notes (optional)"
+                }
+                value={calfForm.notes}
+                onChange={(e) =>
+                  setCalfForm((p) => ({ ...p, notes: e.target.value }))
+                }
+              />
+            </div>
+            <Button
+              type="submit"
+              size="sm"
+              data-ocid="calf.form.submit_button"
+              disabled={addCalf.isPending}
+              className="w-full gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              {addCalf.isPending ? t("saving") : t("addCalf")}
+            </Button>
+          </form>
+
+          {/* Calves List */}
+          <div className="mt-2 space-y-2">
+            {calvesLoading ? (
+              <div data-ocid="calf.loading_state" className="space-y-2">
+                {[1, 2].map((i) => (
+                  <Skeleton key={i} className="h-14 rounded-lg" />
+                ))}
+              </div>
+            ) : calves.length === 0 ? (
+              <div
+                data-ocid="calf.empty_state"
+                className="text-center py-8 text-muted-foreground"
+              >
+                <Baby className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">{t("noCalves")}</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {calves.map((calf: Calf, idx: number) => {
+                  const monthIdx = Number(calf.birthMonth) - 1;
+                  const monthName =
+                    lang === "hi"
+                      ? (MONTH_NAMES_HI[monthIdx] ?? String(calf.birthMonth))
+                      : (MONTH_NAMES_EN[monthIdx] ?? String(calf.birthMonth));
+                  const isBachda = calf.gender === "bachda";
+                  return (
+                    <motion.div
+                      key={calf.id.toString()}
+                      data-ocid={`calf.item.${idx + 1}`}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center justify-between p-3 rounded-lg border border-border bg-card"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            "w-8 h-8 rounded-full flex items-center justify-center text-sm",
+                            isBachda
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-pink-100 text-pink-700",
+                          )}
+                        >
+                          <Baby className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={cn(
+                                "text-xs px-2 py-0.5 rounded-full font-semibold",
+                                isBachda
+                                  ? "bg-blue-100 text-blue-700"
+                                  : "bg-pink-100 text-pink-700",
+                              )}
+                            >
+                              {isBachda
+                                ? lang === "hi"
+                                  ? "बछड़ा"
+                                  : "Bachda"
+                                : lang === "hi"
+                                  ? "बछड़ी"
+                                  : "Bachdi"}
+                            </span>
+                            {calf.tagNumber && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] px-1.5 py-0 h-4 bg-yellow-50 text-yellow-700 border-yellow-300 gap-0.5"
+                              >
+                                <Tag className="h-2.5 w-2.5" />
+                                {calf.tagNumber}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {lang === "hi" ? "जन्म:" : "Born:"} {monthName}{" "}
+                            {String(calf.birthYear)}
+                            {calf.notes ? ` • ${calf.notes}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => handleDeleteCalf(calf.id)}
+                        data-ocid={`calf.delete_button.${idx + 1}`}
+                        disabled={deleteCalf.isPending}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              size="sm"
+              data-ocid="cow.calves.close_button"
+              onClick={() => setCalvesCow(null)}
+            >
+              {t("close")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

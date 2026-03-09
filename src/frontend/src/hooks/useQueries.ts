@@ -1,5 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Announcement, Cow, Donation, HealthRecord } from "../backend.d";
+import type {
+  Announcement,
+  Calf,
+  Cow,
+  Donation,
+  HealthRecord,
+} from "../backend.d";
 import { useActor } from "./useActor";
 
 // ── Cows ──────────────────────────────────────────────────────────────
@@ -12,6 +18,7 @@ export function useGetAllCows() {
       return actor.getAllCows();
     },
     enabled: !!actor && !isFetching,
+    refetchInterval: 30000,
   });
 }
 
@@ -25,6 +32,8 @@ export function useAddCow() {
       age: bigint;
       healthStatus: string;
       description: string;
+      tagNumber: string;
+      qrCode: string;
     }) => {
       if (!actor) throw new Error("No actor");
       return actor.addCow(
@@ -33,6 +42,8 @@ export function useAddCow() {
         data.age,
         data.healthStatus,
         data.description,
+        data.tagNumber,
+        data.qrCode,
       );
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["cows"] }),
@@ -50,6 +61,8 @@ export function useUpdateCow() {
       age: bigint;
       healthStatus: string;
       description: string;
+      tagNumber: string;
+      qrCode: string;
     }) => {
       if (!actor) throw new Error("No actor");
       return actor.updateCow(
@@ -59,6 +72,8 @@ export function useUpdateCow() {
         data.age,
         data.healthStatus,
         data.description,
+        data.tagNumber,
+        data.qrCode,
       );
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["cows"] }),
@@ -90,6 +105,7 @@ export function useGetAllDonations() {
       return actor.getAllDonations();
     },
     enabled: !!actor && !isFetching,
+    refetchInterval: 30000,
   });
 }
 
@@ -125,6 +141,7 @@ export function useGetHealthRecordsByCow(cowId: bigint | null) {
       return actor.getHealthRecordsByCow(cowId);
     },
     enabled: !!actor && !isFetching && cowId !== null,
+    refetchInterval: 30000,
   });
 }
 
@@ -141,6 +158,7 @@ export function useGetAllHealthRecords() {
       return results.flat();
     },
     enabled: !!actor && !isFetching,
+    refetchInterval: 30000,
   });
 }
 
@@ -178,6 +196,7 @@ export function useGetActiveAnnouncements() {
       return actor.getActiveAnnouncements();
     },
     enabled: !!actor && !isFetching,
+    refetchInterval: 30000,
   });
 }
 
@@ -202,5 +221,73 @@ export function useAddAnnouncement() {
       );
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["announcements"] }),
+  });
+}
+
+// ── Calves ────────────────────────────────────────────────────────────
+export function useGetCalvesByCow(cowId: bigint | null) {
+  const { actor, isFetching } = useActor();
+  return useQuery<Calf[]>({
+    queryKey: ["calves", cowId?.toString()],
+    queryFn: async () => {
+      if (!actor || cowId === null) return [];
+      return actor.getCalvesByCow(cowId);
+    },
+    enabled: !!actor && !isFetching && cowId !== null,
+    refetchInterval: 30000,
+  });
+}
+
+export function useAddCalf() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      cowId: bigint;
+      birthMonth: bigint;
+      birthYear: bigint;
+      gender: string;
+      tagNumber: string;
+      notes: string;
+    }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.addCalf(
+        data.cowId,
+        data.birthMonth,
+        data.birthYear,
+        data.gender,
+        data.tagNumber,
+        data.notes,
+      );
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({
+        queryKey: ["calves", variables.cowId.toString()],
+      });
+    },
+  });
+}
+
+export function useDeleteCalf() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("No actor");
+      return actor.deleteCalf(id);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["calves"] });
+    },
+  });
+}
+
+export function useGetCowByTag() {
+  const { actor } = useActor();
+  return useMutation({
+    mutationFn: async (tag: string): Promise<Cow | null> => {
+      if (!actor) throw new Error("No actor");
+      return actor.getCowByTag(tag);
+    },
   });
 }

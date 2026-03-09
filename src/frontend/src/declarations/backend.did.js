@@ -26,6 +26,8 @@ export const Cow = IDL.Record({
   'healthStatus' : IDL.Text,
   'addedDate' : Time,
   'breed' : IDL.Text,
+  'tagNumber' : IDL.Text,
+  'qrCode' : IDL.Text,
 });
 export const Donation = IDL.Record({
   'id' : IDL.Nat,
@@ -34,6 +36,16 @@ export const Donation = IDL.Record({
   'message' : IDL.Text,
   'amount' : IDL.Float64,
   'purpose' : IDL.Text,
+});
+export const Calf = IDL.Record({
+  'id' : IDL.Nat,
+  'birthYear' : IDL.Nat,
+  'cowId' : IDL.Nat,
+  'gender' : IDL.Text,
+  'notes' : IDL.Text,
+  'birthMonth' : IDL.Nat,
+  'addedDate' : Time,
+  'tagNumber' : IDL.Text,
 });
 export const HealthRecord = IDL.Record({
   'id' : IDL.Nat,
@@ -50,8 +62,13 @@ export const idlService = IDL.Service({
       [IDL.Nat],
       [],
     ),
+  'addCalf' : IDL.Func(
+      [IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text, IDL.Text, IDL.Text],
+      [IDL.Nat],
+      [],
+    ),
   'addCow' : IDL.Func(
-      [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text],
+      [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
       [IDL.Nat],
       [],
     ),
@@ -65,12 +82,15 @@ export const idlService = IDL.Service({
       [IDL.Nat],
       [],
     ),
+  'deleteCalf' : IDL.Func([IDL.Nat], [], []),
   'deleteCow' : IDL.Func([IDL.Nat], [], []),
   'getActiveAnnouncements' : IDL.Func([], [IDL.Vec(Announcement)], ['query']),
   'getAllCows' : IDL.Func([], [IDL.Vec(Cow)], ['query']),
   'getAllDonations' : IDL.Func([], [IDL.Vec(Donation)], ['query']),
   'getAnnouncement' : IDL.Func([IDL.Nat], [Announcement], ['query']),
+  'getCalvesByCow' : IDL.Func([IDL.Nat], [IDL.Vec(Calf)], ['query']),
   'getCow' : IDL.Func([IDL.Nat], [Cow], ['query']),
+  'getCowByTag' : IDL.Func([IDL.Text], [IDL.Opt(Cow)], ['query']),
   'getDonation' : IDL.Func([IDL.Nat], [Donation], ['query']),
   'getHealthRecord' : IDL.Func([IDL.Nat], [HealthRecord], ['query']),
   'getHealthRecordsByCow' : IDL.Func(
@@ -79,7 +99,16 @@ export const idlService = IDL.Service({
       ['query'],
     ),
   'updateCow' : IDL.Func(
-      [IDL.Nat, IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text],
+      [
+        IDL.Nat,
+        IDL.Text,
+        IDL.Text,
+        IDL.Nat,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+      ],
       [],
       [],
     ),
@@ -106,6 +135,8 @@ export const idlFactory = ({ IDL }) => {
     'healthStatus' : IDL.Text,
     'addedDate' : Time,
     'breed' : IDL.Text,
+    'tagNumber' : IDL.Text,
+    'qrCode' : IDL.Text,
   });
   const Donation = IDL.Record({
     'id' : IDL.Nat,
@@ -114,6 +145,16 @@ export const idlFactory = ({ IDL }) => {
     'message' : IDL.Text,
     'amount' : IDL.Float64,
     'purpose' : IDL.Text,
+  });
+  const Calf = IDL.Record({
+    'id' : IDL.Nat,
+    'birthYear' : IDL.Nat,
+    'cowId' : IDL.Nat,
+    'gender' : IDL.Text,
+    'notes' : IDL.Text,
+    'birthMonth' : IDL.Nat,
+    'addedDate' : Time,
+    'tagNumber' : IDL.Text,
   });
   const HealthRecord = IDL.Record({
     'id' : IDL.Nat,
@@ -130,8 +171,13 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Nat],
         [],
       ),
+    'addCalf' : IDL.Func(
+        [IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
     'addCow' : IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text],
+        [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [IDL.Nat],
         [],
       ),
@@ -145,12 +191,15 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Nat],
         [],
       ),
+    'deleteCalf' : IDL.Func([IDL.Nat], [], []),
     'deleteCow' : IDL.Func([IDL.Nat], [], []),
     'getActiveAnnouncements' : IDL.Func([], [IDL.Vec(Announcement)], ['query']),
     'getAllCows' : IDL.Func([], [IDL.Vec(Cow)], ['query']),
     'getAllDonations' : IDL.Func([], [IDL.Vec(Donation)], ['query']),
     'getAnnouncement' : IDL.Func([IDL.Nat], [Announcement], ['query']),
+    'getCalvesByCow' : IDL.Func([IDL.Nat], [IDL.Vec(Calf)], ['query']),
     'getCow' : IDL.Func([IDL.Nat], [Cow], ['query']),
+    'getCowByTag' : IDL.Func([IDL.Text], [IDL.Opt(Cow)], ['query']),
     'getDonation' : IDL.Func([IDL.Nat], [Donation], ['query']),
     'getHealthRecord' : IDL.Func([IDL.Nat], [HealthRecord], ['query']),
     'getHealthRecordsByCow' : IDL.Func(
@@ -159,7 +208,16 @@ export const idlFactory = ({ IDL }) => {
         ['query'],
       ),
     'updateCow' : IDL.Func(
-        [IDL.Nat, IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text],
+        [
+          IDL.Nat,
+          IDL.Text,
+          IDL.Text,
+          IDL.Nat,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+        ],
         [],
         [],
       ),

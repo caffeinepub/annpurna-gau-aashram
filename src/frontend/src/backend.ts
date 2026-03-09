@@ -115,6 +115,16 @@ export interface HealthRecord {
     notes: string;
 }
 export type Time = bigint;
+export interface Calf {
+    id: bigint;
+    birthYear: bigint;
+    cowId: bigint;
+    gender: string;
+    notes: string;
+    birthMonth: bigint;
+    addedDate: Time;
+    tagNumber: string;
+}
 export interface Cow {
     id: bigint;
     age: bigint;
@@ -123,23 +133,30 @@ export interface Cow {
     healthStatus: string;
     addedDate: Time;
     breed: string;
+    tagNumber: string;
+    qrCode: string;
 }
 export interface backendInterface {
     addAnnouncement(title: string, titleHindi: string, content: string, contentHindi: string, isActive: boolean): Promise<bigint>;
-    addCow(name: string, breed: string, age: bigint, healthStatus: string, description: string): Promise<bigint>;
+    addCalf(cowId: bigint, birthMonth: bigint, birthYear: bigint, gender: string, tagNumber: string, notes: string): Promise<bigint>;
+    addCow(name: string, breed: string, age: bigint, healthStatus: string, description: string, tagNumber: string, qrCode: string): Promise<bigint>;
     addDonation(donorName: string, amount: number, message: string, purpose: string): Promise<bigint>;
     addHealthRecord(cowId: bigint, notes: string, status: string, vetName: string): Promise<bigint>;
+    deleteCalf(id: bigint): Promise<void>;
     deleteCow(id: bigint): Promise<void>;
     getActiveAnnouncements(): Promise<Array<Announcement>>;
     getAllCows(): Promise<Array<Cow>>;
     getAllDonations(): Promise<Array<Donation>>;
     getAnnouncement(id: bigint): Promise<Announcement>;
+    getCalvesByCow(cowId: bigint): Promise<Array<Calf>>;
     getCow(id: bigint): Promise<Cow>;
+    getCowByTag(tag: string): Promise<Cow | null>;
     getDonation(id: bigint): Promise<Donation>;
     getHealthRecord(id: bigint): Promise<HealthRecord>;
     getHealthRecordsByCow(cowId: bigint): Promise<Array<HealthRecord>>;
-    updateCow(id: bigint, name: string, breed: string, age: bigint, healthStatus: string, description: string): Promise<void>;
+    updateCow(id: bigint, name: string, breed: string, age: bigint, healthStatus: string, description: string, tagNumber: string, qrCode: string): Promise<void>;
 }
+import type { Cow as _Cow } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async addAnnouncement(arg0: string, arg1: string, arg2: string, arg3: string, arg4: boolean): Promise<bigint> {
@@ -156,17 +173,31 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async addCow(arg0: string, arg1: string, arg2: bigint, arg3: string, arg4: string): Promise<bigint> {
+    async addCalf(arg0: bigint, arg1: bigint, arg2: bigint, arg3: string, arg4: string, arg5: string): Promise<bigint> {
         if (this.processError) {
             try {
-                const result = await this.actor.addCow(arg0, arg1, arg2, arg3, arg4);
+                const result = await this.actor.addCalf(arg0, arg1, arg2, arg3, arg4, arg5);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.addCow(arg0, arg1, arg2, arg3, arg4);
+            const result = await this.actor.addCalf(arg0, arg1, arg2, arg3, arg4, arg5);
+            return result;
+        }
+    }
+    async addCow(arg0: string, arg1: string, arg2: bigint, arg3: string, arg4: string, arg5: string, arg6: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addCow(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addCow(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
             return result;
         }
     }
@@ -195,6 +226,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.addHealthRecord(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async deleteCalf(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteCalf(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteCalf(arg0);
             return result;
         }
     }
@@ -268,6 +313,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getCalvesByCow(arg0: bigint): Promise<Array<Calf>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getCalvesByCow(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getCalvesByCow(arg0);
+            return result;
+        }
+    }
     async getCow(arg0: bigint): Promise<Cow> {
         if (this.processError) {
             try {
@@ -280,6 +339,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getCow(arg0);
             return result;
+        }
+    }
+    async getCowByTag(arg0: string): Promise<Cow | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getCowByTag(arg0);
+                return from_candid_opt_n1(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getCowByTag(arg0);
+            return from_candid_opt_n1(this._uploadFile, this._downloadFile, result);
         }
     }
     async getDonation(arg0: bigint): Promise<Donation> {
@@ -324,20 +397,23 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async updateCow(arg0: bigint, arg1: string, arg2: string, arg3: bigint, arg4: string, arg5: string): Promise<void> {
+    async updateCow(arg0: bigint, arg1: string, arg2: string, arg3: bigint, arg4: string, arg5: string, arg6: string, arg7: string): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateCow(arg0, arg1, arg2, arg3, arg4, arg5);
+                const result = await this.actor.updateCow(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateCow(arg0, arg1, arg2, arg3, arg4, arg5);
+            const result = await this.actor.updateCow(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
             return result;
         }
     }
+}
+function from_candid_opt_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Cow]): Cow | null {
+    return value.length === 0 ? null : value[0];
 }
 export interface CreateActorOptions {
     agent?: Agent;

@@ -1,13 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  Archive,
   Globe,
   HandCoins,
   HeartPulse,
   LayoutDashboard,
   Megaphone,
   Menu,
+  Milk,
   PawPrint,
+  ScanLine,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -30,16 +33,22 @@ const navItems: {
   { id: "dashboard", icon: LayoutDashboard, en: "Dashboard", hi: "डैशबोर्ड" },
   { id: "cows", icon: PawPrint, en: "Gau Parivar", hi: "गाय परिवार" },
   { id: "health", icon: HeartPulse, en: "Swasthya", hi: "स्वास्थ्य" },
+  { id: "milk", icon: Milk, en: "Dudh", hi: "दूध प्रबंधन" },
   { id: "donations", icon: HandCoins, en: "Daan", hi: "दान" },
   { id: "announcements", icon: Megaphone, en: "Ghoshna", hi: "घोषणा" },
+  { id: "scanner", icon: ScanLine, en: "QR Scanner", hi: "QR स्कैनर" },
+  { id: "backup", icon: Archive, en: "Backup", hi: "बैकअप" },
 ];
 
 const ocidMap: Record<Page, string> = {
   dashboard: "nav.dashboard.link",
   cows: "nav.cows.link",
   health: "nav.health.link",
+  milk: "nav.milk.link",
   donations: "nav.donations.link",
   announcements: "nav.announcements.link",
+  scanner: "nav.scanner.link",
+  backup: "nav.backup.link",
 };
 
 export default function Layout({ page, setPage, children }: LayoutProps) {

@@ -4,10 +4,10 @@ import Nat "mo:core/Nat";
 import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
 import Float "mo:core/Float";
-import Int "mo:core/Int";
-import Migration "migration";
+import Text "mo:core/Text";
 
-(with migration = Migration.run)
+
+
 actor {
   type Cow = {
     id : Nat;
@@ -16,6 +16,19 @@ actor {
     age : Nat;
     healthStatus : Text;
     description : Text;
+    addedDate : Time.Time;
+    tagNumber : Text;
+    qrCode : Text;
+  };
+
+  type Calf = {
+    id : Nat;
+    cowId : Nat;
+    birthMonth : Nat;
+    birthYear : Nat;
+    gender : Text;
+    tagNumber : Text;
+    notes : Text;
     addedDate : Time.Time;
   };
 
@@ -48,17 +61,27 @@ actor {
   };
 
   let cows = Map.empty<Nat, Cow>();
+  let calves = Map.empty<Nat, Calf>();
   let donations = Map.empty<Nat, Donation>();
   let healthRecords = Map.empty<Nat, HealthRecord>();
   let announcements = Map.empty<Nat, Announcement>();
 
   var cowIdCounter = 1;
+  var calfIdCounter = 1;
   var donationIdCounter = 1;
   var healthRecordIdCounter = 1;
   var announcementIdCounter = 1;
 
   // Cow CRUD
-  public shared ({ caller }) func addCow(name : Text, breed : Text, age : Nat, healthStatus : Text, description : Text) : async Nat {
+  public shared ({ caller }) func addCow(
+    name : Text,
+    breed : Text,
+    age : Nat,
+    healthStatus : Text,
+    description : Text,
+    tagNumber : Text,
+    qrCode : Text,
+  ) : async Nat {
     let id = cowIdCounter;
     cowIdCounter += 1;
     let cow : Cow = {
@@ -69,6 +92,8 @@ actor {
       healthStatus;
       description;
       addedDate = Time.now();
+      tagNumber;
+      qrCode;
     };
     cows.add(id, cow);
     id;
@@ -85,10 +110,19 @@ actor {
     cows.values().toArray();
   };
 
-  public shared ({ caller }) func updateCow(id : Nat, name : Text, breed : Text, age : Nat, healthStatus : Text, description : Text) : async () {
+  public shared ({ caller }) func updateCow(
+    id : Nat,
+    name : Text,
+    breed : Text,
+    age : Nat,
+    healthStatus : Text,
+    description : Text,
+    tagNumber : Text,
+    qrCode : Text,
+  ) : async () {
     switch (cows.get(id)) {
       case (null) { Runtime.trap("Cow with id " # id.toText() # " not found") };
-      case (?_) {
+      case (?existingCow) {
         let updatedCow : Cow = {
           id;
           name;
@@ -96,7 +130,9 @@ actor {
           age;
           healthStatus;
           description;
-          addedDate = Time.now();
+          addedDate = existingCow.addedDate;
+          tagNumber;
+          qrCode;
         };
         cows.add(id, updatedCow);
       };
@@ -108,6 +144,60 @@ actor {
       Runtime.trap("Cow with id " # id.toText() # " not found");
     };
     cows.remove(id);
+  };
+
+  public query ({ caller }) func getCowByTag(tag : Text) : async ?Cow {
+    if (tag == "") {
+      return null;
+    };
+    let iter = cows.values();
+    iter.find(
+      func(cow) {
+        (cow.tagNumber != "" and cow.tagNumber == tag) or (cow.qrCode != "" and cow.qrCode == tag);
+      }
+    );
+  };
+
+  // Calf CRUD
+  public shared ({ caller }) func addCalf(
+    cowId : Nat,
+    birthMonth : Nat,
+    birthYear : Nat,
+    gender : Text,
+    tagNumber : Text,
+    notes : Text,
+  ) : async Nat {
+    switch (cows.get(cowId)) {
+      case (null) { Runtime.trap("Cow not found") };
+      case (?_) {
+        let id = calfIdCounter;
+        calfIdCounter += 1;
+        let calf : Calf = {
+          id;
+          cowId;
+          birthMonth;
+          birthYear;
+          gender;
+          tagNumber;
+          notes;
+          addedDate = Time.now();
+        };
+        calves.add(id, calf);
+        id;
+      };
+    };
+  };
+
+  public query ({ caller }) func getCalvesByCow(cowId : Nat) : async [Calf] {
+    let iter = calves.values();
+    iter.filter(func(calf) { calf.cowId == cowId }).toArray();
+  };
+
+  public shared ({ caller }) func deleteCalf(id : Nat) : async () {
+    if (not calves.containsKey(id)) {
+      Runtime.trap("Calf with id " # id.toText() # " not found");
+    };
+    calves.remove(id);
   };
 
   // Donation CRUD
@@ -197,4 +287,3 @@ actor {
     iter.filter(func(a) { a.isActive }).toArray();
   };
 };
-

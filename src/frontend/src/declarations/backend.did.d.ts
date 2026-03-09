@@ -19,6 +19,16 @@ export interface Announcement {
   'date' : Time,
   'isActive' : boolean,
 }
+export interface Calf {
+  'id' : bigint,
+  'birthYear' : bigint,
+  'cowId' : bigint,
+  'gender' : string,
+  'notes' : string,
+  'birthMonth' : bigint,
+  'addedDate' : Time,
+  'tagNumber' : string,
+}
 export interface Cow {
   'id' : bigint,
   'age' : bigint,
@@ -27,6 +37,8 @@ export interface Cow {
   'healthStatus' : string,
   'addedDate' : Time,
   'breed' : string,
+  'tagNumber' : string,
+  'qrCode' : string,
 }
 export interface Donation {
   'id' : bigint,
@@ -50,20 +62,30 @@ export interface _SERVICE {
     [string, string, string, string, boolean],
     bigint
   >,
-  'addCow' : ActorMethod<[string, string, bigint, string, string], bigint>,
+  'addCalf' : ActorMethod<
+    [bigint, bigint, bigint, string, string, string],
+    bigint
+  >,
+  'addCow' : ActorMethod<
+    [string, string, bigint, string, string, string, string],
+    bigint
+  >,
   'addDonation' : ActorMethod<[string, number, string, string], bigint>,
   'addHealthRecord' : ActorMethod<[bigint, string, string, string], bigint>,
+  'deleteCalf' : ActorMethod<[bigint], undefined>,
   'deleteCow' : ActorMethod<[bigint], undefined>,
   'getActiveAnnouncements' : ActorMethod<[], Array<Announcement>>,
   'getAllCows' : ActorMethod<[], Array<Cow>>,
   'getAllDonations' : ActorMethod<[], Array<Donation>>,
   'getAnnouncement' : ActorMethod<[bigint], Announcement>,
+  'getCalvesByCow' : ActorMethod<[bigint], Array<Calf>>,
   'getCow' : ActorMethod<[bigint], Cow>,
+  'getCowByTag' : ActorMethod<[string], [] | [Cow]>,
   'getDonation' : ActorMethod<[bigint], Donation>,
   'getHealthRecord' : ActorMethod<[bigint], HealthRecord>,
   'getHealthRecordsByCow' : ActorMethod<[bigint], Array<HealthRecord>>,
   'updateCow' : ActorMethod<
-    [bigint, string, string, bigint, string, string],
+    [bigint, string, string, bigint, string, string, string, string],
     undefined
   >,
 }

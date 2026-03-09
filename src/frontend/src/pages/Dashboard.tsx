@@ -1,70 +1,60 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion } from "motion/react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import type { Page } from "../App";
 import { useGetAllCows } from "../hooks/useQueries";
 import { useLang } from "../lib/LanguageContext";
 
 interface DashboardProps {
   setPage: (p: Page) => void;
+  onCategoryClick: (prakar: string) => void;
 }
 
-function getTodayKey() {
-  const d = new Date();
-  return `gaushala-milk-${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+// Same helpers as MilkManagement to read from the same localStorage keys
+function dateToKey(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
-interface MilkData {
+function getMilkKey(cowId: string, date: string) {
+  return `milk-${cowId}-${date}`;
+}
+
+interface MilkEntry {
   morning: number;
   evening: number;
-  date: string;
 }
 
-export default function Dashboard({ setPage }: DashboardProps) {
+function getStoredMilk(cowId: string, date: string): MilkEntry {
+  try {
+    const raw = localStorage.getItem(getMilkKey(cowId, date));
+    if (!raw) return { morning: 0, evening: 0 };
+    return JSON.parse(raw) as MilkEntry;
+  } catch {
+    return { morning: 0, evening: 0 };
+  }
+}
+
+export default function Dashboard({
+  setPage,
+  onCategoryClick,
+}: DashboardProps) {
   const { t, lang } = useLang();
   const { data: cows = [], isLoading: cowsLoading } = useGetAllCows();
 
-  // Milk tracker state
-  const [morningInput, setMorningInput] = useState("");
-  const [eveningInput, setEveningInput] = useState("");
-  const [savedMilk, setSavedMilk] = useState<MilkData>({
-    morning: 0,
-    evening: 0,
-    date: "",
-  });
-
-  // Load today's milk from localStorage on mount
-  useEffect(() => {
-    const key = getTodayKey();
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as MilkData;
-        setSavedMilk(parsed);
-        setMorningInput(parsed.morning > 0 ? parsed.morning.toString() : "");
-        setEveningInput(parsed.evening > 0 ? parsed.evening.toString() : "");
-      } catch {
-        // ignore parse errors
-      }
-    }
-  }, []);
-
-  function saveMilk() {
-    const morning = Number.parseFloat(morningInput) || 0;
-    const evening = Number.parseFloat(eveningInput) || 0;
-    const key = getTodayKey();
-    const data: MilkData = {
-      morning,
-      evening,
-      date: new Date().toISOString(),
-    };
-    localStorage.setItem(key, JSON.stringify(data));
-    setSavedMilk(data);
-    toast.success(lang === "hi" ? "दूध की जानकारी सहेजी गई" : "Milk data saved");
-  }
+  // Calculate today's milk totals from MilkManagement's localStorage keys
+  const todayStr = dateToKey(new Date());
+  const lactatingCows = cows.filter((c) => c.healthStatus === "Lactating");
+  const savedMilk = lactatingCows.reduce(
+    (acc, cow) => {
+      const entry = getStoredMilk(cow.id.toString(), todayStr);
+      acc.morning += entry.morning;
+      acc.evening += entry.evening;
+      return acc;
+    },
+    { morning: 0, evening: 0 },
+  );
 
   // Category counts
   const gayCount = cows.filter(
@@ -78,6 +68,7 @@ export default function Dashboard({ setPage }: DashboardProps) {
     {
       key: "dujni",
       label: t("dujni"),
+      statusValue: "Lactating",
       count: cows.filter((c) => c.healthStatus === "Lactating").length,
       emoji: "🐄",
       bg: "bg-amber-50",
@@ -87,6 +78,7 @@ export default function Dashboard({ setPage }: DashboardProps) {
     {
       key: "bachdi",
       label: t("bachdi"),
+      statusValue: "Calf-F",
       count: cows.filter((c) => c.healthStatus === "Calf-F").length,
       emoji: "🐮",
       bg: "bg-yellow-50",
@@ -96,6 +88,7 @@ export default function Dashboard({ setPage }: DashboardProps) {
     {
       key: "gabhin",
       label: t("gabhin"),
+      statusValue: "Pregnant",
       count: cows.filter((c) => c.healthStatus === "Pregnant").length,
       emoji: "🤰",
       bg: "bg-orange-50",
@@ -105,6 +98,7 @@ export default function Dashboard({ setPage }: DashboardProps) {
     {
       key: "vasuki",
       label: t("vasuki"),
+      statusValue: "Dry",
       count: cows.filter((c) => c.healthStatus === "Dry").length,
       emoji: "🌿",
       bg: "bg-lime-50",
@@ -114,6 +108,7 @@ export default function Dashboard({ setPage }: DashboardProps) {
     {
       key: "nandi",
       label: t("nandi"),
+      statusValue: "Bull",
       count: cows.filter((c) => c.healthStatus === "Bull").length,
       emoji: "🐃",
       bg: "bg-sky-50",
@@ -123,6 +118,7 @@ export default function Dashboard({ setPage }: DashboardProps) {
     {
       key: "bachda",
       label: t("bachda"),
+      statusValue: "Calf-M",
       count: cows.filter((c) => c.healthStatus === "Calf-M").length,
       emoji: "🐂",
       bg: "bg-blue-50",
@@ -132,6 +128,7 @@ export default function Dashboard({ setPage }: DashboardProps) {
     {
       key: "retiredNandi",
       label: t("retiredNandi"),
+      statusValue: "Retired-Bull",
       count: cows.filter((c) => c.healthStatus === "Retired-Bull").length,
       emoji: "🧓",
       bg: "bg-purple-50",
@@ -141,6 +138,7 @@ export default function Dashboard({ setPage }: DashboardProps) {
     {
       key: "retiredGay",
       label: t("retiredGay"),
+      statusValue: "Retired",
       count: cows.filter((c) => c.healthStatus === "Retired").length,
       emoji: "🌸",
       bg: "bg-pink-50",
@@ -224,7 +222,7 @@ export default function Dashboard({ setPage }: DashboardProps) {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.05, duration: 0.25 }}
               className={`${cat.bg} ${cat.border} border rounded-xl p-2.5 text-center cursor-pointer hover:shadow-md transition-shadow`}
-              onClick={() => setPage("cows")}
+              onClick={() => onCategoryClick(cat.statusValue)}
             >
               <div className="text-xl mb-0.5">{cat.emoji}</div>
               <div
@@ -391,62 +389,15 @@ export default function Dashboard({ setPage }: DashboardProps) {
           </div>
         </div>
 
-        {/* Milk input row */}
-        <div className="bg-white border border-border rounded-xl p-3 space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label
-                htmlFor="morning-milk-input"
-                className="text-xs font-medium text-amber-700 flex items-center gap-1"
-              >
-                ☀️ {t("morningMilk")}
-              </label>
-              <Input
-                id="morning-milk-input"
-                data-ocid="dashboard.milk.morning.input"
-                type="number"
-                min="0"
-                step="0.1"
-                placeholder={t("enterMorning")}
-                value={morningInput}
-                onChange={(e) => setMorningInput(e.target.value)}
-                className="h-9 text-sm border-amber-200 focus:border-amber-400"
-              />
-            </div>
-            <div className="space-y-1">
-              <label
-                htmlFor="evening-milk-input"
-                className="text-xs font-medium text-teal-700 flex items-center gap-1"
-              >
-                🌙 {t("eveningMilk")}
-              </label>
-              <Input
-                id="evening-milk-input"
-                data-ocid="dashboard.milk.evening.input"
-                type="number"
-                min="0"
-                step="0.1"
-                placeholder={t("enterEvening")}
-                value={eveningInput}
-                onChange={(e) => setEveningInput(e.target.value)}
-                className="h-9 text-sm border-teal-200 focus:border-teal-400"
-              />
-            </div>
-          </div>
-          <Button
-            data-ocid="dashboard.milk.save_button"
-            onClick={saveMilk}
-            className="w-full h-9 text-sm font-semibold"
-            style={{
-              background:
-                "linear-gradient(135deg, oklch(0.72 0.18 50), oklch(0.65 0.2 40))",
-              color: "white",
-              border: "none",
-            }}
-          >
-            🥛 {t("saveMilk")}
-          </Button>
-        </div>
+        {/* Go to milk management */}
+        <button
+          type="button"
+          data-ocid="dashboard.milk.manage_button"
+          onClick={() => setPage("milk")}
+          className="w-full text-xs text-muted-foreground hover:text-primary transition-colors mt-1 underline underline-offset-2"
+        >
+          {lang === "hi" ? "दूध प्रबंधन में जाएं →" : "Go to Milk Management →"}
+        </button>
       </motion.section>
     </div>
   );
