@@ -29,6 +29,15 @@ export interface Calf {
   'addedDate' : Time,
   'tagNumber' : string,
 }
+export interface ChangeLog {
+  'id' : bigint,
+  'entity' : string,
+  'userName' : string,
+  'action' : string,
+  'timestamp' : Time,
+  'details' : string,
+  'entityName' : string,
+}
 export interface Cow {
   'id' : bigint,
   'age' : bigint,
@@ -56,27 +65,60 @@ export interface HealthRecord {
   'vetName' : string,
   'notes' : string,
 }
+export interface MilkRecord {
+  'id' : bigint,
+  'morning' : number,
+  'evening' : number,
+  'changedBy' : string,
+  'cowName' : string,
+  'date' : string,
+  'cowId' : bigint,
+  'addedDate' : Time,
+}
 export type Time = bigint;
+export interface User {
+  'id' : bigint,
+  'pin' : string,
+  'name' : string,
+  'role' : string,
+}
 export interface _SERVICE {
   'addAnnouncement' : ActorMethod<
-    [string, string, string, string, boolean],
+    [string, string, string, string, boolean, string],
     bigint
   >,
   'addCalf' : ActorMethod<
-    [bigint, bigint, bigint, string, string, string],
+    [bigint, bigint, bigint, string, string, string, string],
     bigint
+  >,
+  'addChangeLog' : ActorMethod<
+    [string, string, string, string, string],
+    undefined
   >,
   'addCow' : ActorMethod<
-    [string, string, bigint, string, string, string, string],
+    [string, string, bigint, string, string, string, string, string],
     bigint
   >,
-  'addDonation' : ActorMethod<[string, number, string, string], bigint>,
-  'addHealthRecord' : ActorMethod<[bigint, string, string, string], bigint>,
-  'deleteCalf' : ActorMethod<[bigint], undefined>,
-  'deleteCow' : ActorMethod<[bigint], undefined>,
+  'addDonation' : ActorMethod<[string, number, string, string, string], bigint>,
+  'addHealthRecord' : ActorMethod<
+    [bigint, string, string, string, string],
+    bigint
+  >,
+  'addMilkRecord' : ActorMethod<
+    [bigint, string, string, number, number, string],
+    bigint
+  >,
+  'createUser' : ActorMethod<[string, string, string], bigint>,
+  'deleteCalf' : ActorMethod<[bigint, string], undefined>,
+  'deleteCow' : ActorMethod<[bigint, string], undefined>,
+  'deleteMilkRecord' : ActorMethod<[bigint, string], undefined>,
+  'deleteUser' : ActorMethod<[bigint], undefined>,
   'getActiveAnnouncements' : ActorMethod<[], Array<Announcement>>,
+  'getAllChangeLogs' : ActorMethod<[], Array<ChangeLog>>,
   'getAllCows' : ActorMethod<[], Array<Cow>>,
   'getAllDonations' : ActorMethod<[], Array<Donation>>,
+  'getAllMilkRecords' : ActorMethod<[], Array<MilkRecord>>,
+  'getAllUsers' : ActorMethod<[], Array<User>>,
   'getAnnouncement' : ActorMethod<[bigint], Announcement>,
   'getCalvesByCow' : ActorMethod<[bigint], Array<Calf>>,
   'getCow' : ActorMethod<[bigint], Cow>,
@@ -84,8 +126,12 @@ export interface _SERVICE {
   'getDonation' : ActorMethod<[bigint], Donation>,
   'getHealthRecord' : ActorMethod<[bigint], HealthRecord>,
   'getHealthRecordsByCow' : ActorMethod<[bigint], Array<HealthRecord>>,
+  'getMilkRecordsByDate' : ActorMethod<[string], Array<MilkRecord>>,
+  'getTodayMilkRecords' : ActorMethod<[], Array<MilkRecord>>,
+  'getUserByPin' : ActorMethod<[string], [] | [User]>,
+  'ensureDefaultAdmin' : ActorMethod<[], undefined>,
   'updateCow' : ActorMethod<
-    [bigint, string, string, bigint, string, string, string, string],
+    [bigint, string, string, bigint, string, string, string, string, string],
     undefined
   >,
 }

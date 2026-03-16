@@ -18,6 +18,15 @@ export const Announcement = IDL.Record({
   'date' : Time,
   'isActive' : IDL.Bool,
 });
+export const ChangeLog = IDL.Record({
+  'id' : IDL.Nat,
+  'entity' : IDL.Text,
+  'userName' : IDL.Text,
+  'action' : IDL.Text,
+  'timestamp' : Time,
+  'details' : IDL.Text,
+  'entityName' : IDL.Text,
+});
 export const Cow = IDL.Record({
   'id' : IDL.Nat,
   'age' : IDL.Nat,
@@ -36,6 +45,22 @@ export const Donation = IDL.Record({
   'message' : IDL.Text,
   'amount' : IDL.Float64,
   'purpose' : IDL.Text,
+});
+export const MilkRecord = IDL.Record({
+  'id' : IDL.Nat,
+  'morning' : IDL.Float64,
+  'evening' : IDL.Float64,
+  'changedBy' : IDL.Text,
+  'cowName' : IDL.Text,
+  'date' : IDL.Text,
+  'cowId' : IDL.Nat,
+  'addedDate' : Time,
+});
+export const User = IDL.Record({
+  'id' : IDL.Nat,
+  'pin' : IDL.Text,
+  'name' : IDL.Text,
+  'role' : IDL.Text,
 });
 export const Calf = IDL.Record({
   'id' : IDL.Nat,
@@ -58,35 +83,60 @@ export const HealthRecord = IDL.Record({
 
 export const idlService = IDL.Service({
   'addAnnouncement' : IDL.Func(
-      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Bool],
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Bool, IDL.Text],
       [IDL.Nat],
       [],
     ),
   'addCalf' : IDL.Func(
-      [IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text, IDL.Text, IDL.Text],
+      [IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
       [IDL.Nat],
       [],
     ),
+  'addChangeLog' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
   'addCow' : IDL.Func(
-      [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [
+        IDL.Text,
+        IDL.Text,
+        IDL.Nat,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+      ],
       [IDL.Nat],
       [],
     ),
   'addDonation' : IDL.Func(
-      [IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
+      [IDL.Text, IDL.Float64, IDL.Text, IDL.Text, IDL.Text],
       [IDL.Nat],
       [],
     ),
   'addHealthRecord' : IDL.Func(
-      [IDL.Nat, IDL.Text, IDL.Text, IDL.Text],
+      [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
       [IDL.Nat],
       [],
     ),
-  'deleteCalf' : IDL.Func([IDL.Nat], [], []),
-  'deleteCow' : IDL.Func([IDL.Nat], [], []),
+  'addMilkRecord' : IDL.Func(
+      [IDL.Nat, IDL.Text, IDL.Text, IDL.Float64, IDL.Float64, IDL.Text],
+      [IDL.Nat],
+      [],
+    ),
+  'createUser' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
+  'deleteCalf' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+  'deleteCow' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+  'deleteMilkRecord' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+  'deleteUser' : IDL.Func([IDL.Nat], [], []),
   'getActiveAnnouncements' : IDL.Func([], [IDL.Vec(Announcement)], ['query']),
+  'getAllChangeLogs' : IDL.Func([], [IDL.Vec(ChangeLog)], ['query']),
   'getAllCows' : IDL.Func([], [IDL.Vec(Cow)], ['query']),
   'getAllDonations' : IDL.Func([], [IDL.Vec(Donation)], ['query']),
+  'getAllMilkRecords' : IDL.Func([], [IDL.Vec(MilkRecord)], ['query']),
+  'getAllUsers' : IDL.Func([], [IDL.Vec(User)], ['query']),
   'getAnnouncement' : IDL.Func([IDL.Nat], [Announcement], ['query']),
   'getCalvesByCow' : IDL.Func([IDL.Nat], [IDL.Vec(Calf)], ['query']),
   'getCow' : IDL.Func([IDL.Nat], [Cow], ['query']),
@@ -98,12 +148,21 @@ export const idlService = IDL.Service({
       [IDL.Vec(HealthRecord)],
       ['query'],
     ),
+  'getMilkRecordsByDate' : IDL.Func(
+      [IDL.Text],
+      [IDL.Vec(MilkRecord)],
+      ['query'],
+    ),
+  'getTodayMilkRecords' : IDL.Func([], [IDL.Vec(MilkRecord)], ['query']),
+  'getUserByPin' : IDL.Func([IDL.Text], [IDL.Opt(User)], ['query']),
+  'ensureDefaultAdmin' : IDL.Func([], [], []),
   'updateCow' : IDL.Func(
       [
         IDL.Nat,
         IDL.Text,
         IDL.Text,
         IDL.Nat,
+        IDL.Text,
         IDL.Text,
         IDL.Text,
         IDL.Text,
@@ -127,6 +186,15 @@ export const idlFactory = ({ IDL }) => {
     'date' : Time,
     'isActive' : IDL.Bool,
   });
+  const ChangeLog = IDL.Record({
+    'id' : IDL.Nat,
+    'entity' : IDL.Text,
+    'userName' : IDL.Text,
+    'action' : IDL.Text,
+    'timestamp' : Time,
+    'details' : IDL.Text,
+    'entityName' : IDL.Text,
+  });
   const Cow = IDL.Record({
     'id' : IDL.Nat,
     'age' : IDL.Nat,
@@ -145,6 +213,22 @@ export const idlFactory = ({ IDL }) => {
     'message' : IDL.Text,
     'amount' : IDL.Float64,
     'purpose' : IDL.Text,
+  });
+  const MilkRecord = IDL.Record({
+    'id' : IDL.Nat,
+    'morning' : IDL.Float64,
+    'evening' : IDL.Float64,
+    'changedBy' : IDL.Text,
+    'cowName' : IDL.Text,
+    'date' : IDL.Text,
+    'cowId' : IDL.Nat,
+    'addedDate' : Time,
+  });
+  const User = IDL.Record({
+    'id' : IDL.Nat,
+    'pin' : IDL.Text,
+    'name' : IDL.Text,
+    'role' : IDL.Text,
   });
   const Calf = IDL.Record({
     'id' : IDL.Nat,
@@ -167,35 +251,60 @@ export const idlFactory = ({ IDL }) => {
   
   return IDL.Service({
     'addAnnouncement' : IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Bool],
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Bool, IDL.Text],
         [IDL.Nat],
         [],
       ),
     'addCalf' : IDL.Func(
-        [IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [IDL.Nat],
         [],
       ),
+    'addChangeLog' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
     'addCow' : IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [
+          IDL.Text,
+          IDL.Text,
+          IDL.Nat,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+        ],
         [IDL.Nat],
         [],
       ),
     'addDonation' : IDL.Func(
-        [IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
+        [IDL.Text, IDL.Float64, IDL.Text, IDL.Text, IDL.Text],
         [IDL.Nat],
         [],
       ),
     'addHealthRecord' : IDL.Func(
-        [IDL.Nat, IDL.Text, IDL.Text, IDL.Text],
+        [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [IDL.Nat],
         [],
       ),
-    'deleteCalf' : IDL.Func([IDL.Nat], [], []),
-    'deleteCow' : IDL.Func([IDL.Nat], [], []),
+    'addMilkRecord' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Text, IDL.Float64, IDL.Float64, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
+    'createUser' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
+    'deleteCalf' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+    'deleteCow' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+    'deleteMilkRecord' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+    'deleteUser' : IDL.Func([IDL.Nat], [], []),
     'getActiveAnnouncements' : IDL.Func([], [IDL.Vec(Announcement)], ['query']),
+    'getAllChangeLogs' : IDL.Func([], [IDL.Vec(ChangeLog)], ['query']),
     'getAllCows' : IDL.Func([], [IDL.Vec(Cow)], ['query']),
     'getAllDonations' : IDL.Func([], [IDL.Vec(Donation)], ['query']),
+    'getAllMilkRecords' : IDL.Func([], [IDL.Vec(MilkRecord)], ['query']),
+    'getAllUsers' : IDL.Func([], [IDL.Vec(User)], ['query']),
     'getAnnouncement' : IDL.Func([IDL.Nat], [Announcement], ['query']),
     'getCalvesByCow' : IDL.Func([IDL.Nat], [IDL.Vec(Calf)], ['query']),
     'getCow' : IDL.Func([IDL.Nat], [Cow], ['query']),
@@ -207,12 +316,21 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(HealthRecord)],
         ['query'],
       ),
+    'getMilkRecordsByDate' : IDL.Func(
+        [IDL.Text],
+        [IDL.Vec(MilkRecord)],
+        ['query'],
+      ),
+    'getTodayMilkRecords' : IDL.Func([], [IDL.Vec(MilkRecord)], ['query']),
+    'getUserByPin' : IDL.Func([IDL.Text], [IDL.Opt(User)], ['query']),
+  'ensureDefaultAdmin' : IDL.Func([], [], []),
     'updateCow' : IDL.Func(
         [
           IDL.Nat,
           IDL.Text,
           IDL.Text,
           IDL.Nat,
+          IDL.Text,
           IDL.Text,
           IDL.Text,
           IDL.Text,

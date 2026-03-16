@@ -7,14 +7,15 @@ export interface None {
     __kind__: "None";
 }
 export type Option<T> = Some<T> | None;
-export interface Announcement {
+export interface MilkRecord {
     id: bigint;
-    contentHindi: string;
-    title: string;
-    content: string;
-    titleHindi: string;
-    date: Time;
-    isActive: boolean;
+    morning: number;
+    evening: number;
+    changedBy: string;
+    cowName: string;
+    date: string;
+    cowId: bigint;
+    addedDate: Time;
 }
 export interface Donation {
     id: bigint;
@@ -24,24 +25,12 @@ export interface Donation {
     amount: number;
     purpose: string;
 }
-export interface HealthRecord {
-    id: bigint;
-    status: string;
-    date: Time;
-    cowId: bigint;
-    vetName: string;
-    notes: string;
-}
 export type Time = bigint;
-export interface Calf {
+export interface User {
     id: bigint;
-    birthYear: bigint;
-    cowId: bigint;
-    gender: string;
-    notes: string;
-    birthMonth: bigint;
-    addedDate: Time;
-    tagNumber: string;
+    pin: string;
+    name: string;
+    role: string;
 }
 export interface Cow {
     id: bigint;
@@ -54,17 +43,61 @@ export interface Cow {
     tagNumber: string;
     qrCode: string;
 }
+export interface Calf {
+    id: bigint;
+    birthYear: bigint;
+    cowId: bigint;
+    gender: string;
+    notes: string;
+    birthMonth: bigint;
+    addedDate: Time;
+    tagNumber: string;
+}
+export interface Announcement {
+    id: bigint;
+    contentHindi: string;
+    title: string;
+    content: string;
+    titleHindi: string;
+    date: Time;
+    isActive: boolean;
+}
+export interface HealthRecord {
+    id: bigint;
+    status: string;
+    date: Time;
+    cowId: bigint;
+    vetName: string;
+    notes: string;
+}
+export interface ChangeLog {
+    id: bigint;
+    entity: string;
+    userName: string;
+    action: string;
+    timestamp: Time;
+    details: string;
+    entityName: string;
+}
 export interface backendInterface {
-    addAnnouncement(title: string, titleHindi: string, content: string, contentHindi: string, isActive: boolean): Promise<bigint>;
-    addCalf(cowId: bigint, birthMonth: bigint, birthYear: bigint, gender: string, tagNumber: string, notes: string): Promise<bigint>;
-    addCow(name: string, breed: string, age: bigint, healthStatus: string, description: string, tagNumber: string, qrCode: string): Promise<bigint>;
-    addDonation(donorName: string, amount: number, message: string, purpose: string): Promise<bigint>;
-    addHealthRecord(cowId: bigint, notes: string, status: string, vetName: string): Promise<bigint>;
-    deleteCalf(id: bigint): Promise<void>;
-    deleteCow(id: bigint): Promise<void>;
+    addAnnouncement(title: string, titleHindi: string, content: string, contentHindi: string, isActive: boolean, changedBy: string): Promise<bigint>;
+    addCalf(cowId: bigint, birthMonth: bigint, birthYear: bigint, gender: string, tagNumber: string, notes: string, changedBy: string): Promise<bigint>;
+    addChangeLog(userName: string, action: string, entity: string, entityName: string, details: string): Promise<void>;
+    addCow(name: string, breed: string, age: bigint, healthStatus: string, description: string, tagNumber: string, qrCode: string, changedBy: string): Promise<bigint>;
+    addDonation(donorName: string, amount: number, message: string, purpose: string, changedBy: string): Promise<bigint>;
+    addHealthRecord(cowId: bigint, notes: string, status: string, vetName: string, changedBy: string): Promise<bigint>;
+    addMilkRecord(cowId: bigint, cowName: string, date: string, morning: number, evening: number, changedBy: string): Promise<bigint>;
+    createUser(name: string, role: string, pin: string): Promise<bigint>;
+    deleteCalf(id: bigint, changedBy: string): Promise<void>;
+    deleteCow(id: bigint, changedBy: string): Promise<void>;
+    deleteMilkRecord(id: bigint, changedBy: string): Promise<void>;
+    deleteUser(id: bigint): Promise<void>;
     getActiveAnnouncements(): Promise<Array<Announcement>>;
+    getAllChangeLogs(): Promise<Array<ChangeLog>>;
     getAllCows(): Promise<Array<Cow>>;
     getAllDonations(): Promise<Array<Donation>>;
+    getAllMilkRecords(): Promise<Array<MilkRecord>>;
+    getAllUsers(): Promise<Array<User>>;
     getAnnouncement(id: bigint): Promise<Announcement>;
     getCalvesByCow(cowId: bigint): Promise<Array<Calf>>;
     getCow(id: bigint): Promise<Cow>;
@@ -72,5 +105,9 @@ export interface backendInterface {
     getDonation(id: bigint): Promise<Donation>;
     getHealthRecord(id: bigint): Promise<HealthRecord>;
     getHealthRecordsByCow(cowId: bigint): Promise<Array<HealthRecord>>;
-    updateCow(id: bigint, name: string, breed: string, age: bigint, healthStatus: string, description: string, tagNumber: string, qrCode: string): Promise<void>;
+    getMilkRecordsByDate(date: string): Promise<Array<MilkRecord>>;
+    getTodayMilkRecords(): Promise<Array<MilkRecord>>;
+    getUserByPin(pin: string): Promise<User | null>;
+    ensureDefaultAdmin(): Promise<void>;
+    updateCow(id: bigint, name: string, breed: string, age: bigint, healthStatus: string, description: string, tagNumber: string, qrCode: string, changedBy: string): Promise<void>;
 }

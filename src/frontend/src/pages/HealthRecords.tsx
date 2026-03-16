@@ -28,12 +28,14 @@ import {
   useGetAllHealthRecords,
   useGetHealthRecordsByCow,
 } from "../hooks/useQueries";
+import { useAuth } from "../lib/AuthContext";
 import { useLang } from "../lib/LanguageContext";
 import { formatTime } from "../utils/timeUtils";
 
 interface HealthRecordsProps {
   cowIdFilter: bigint | null;
   onClearFilter: () => void;
+  changedBy: string;
 }
 
 const defaultForm = {
@@ -46,8 +48,10 @@ const defaultForm = {
 export default function HealthRecords({
   cowIdFilter,
   onClearFilter,
+  changedBy,
 }: HealthRecordsProps) {
   const { t, lang } = useLang();
+  const { canEdit } = useAuth();
   const { data: cows = [] } = useGetAllCows();
   const { data: allRecords = [], isLoading: allLoading } =
     useGetAllHealthRecords();
@@ -83,6 +87,7 @@ export default function HealthRecords({
         notes: form.notes,
         status: form.status,
         vetName: form.vetName,
+        changedBy,
       });
       toast.success(t("healthAdded"));
       setDialogOpen(false);
@@ -121,17 +126,19 @@ export default function HealthRecords({
             </div>
           )}
         </div>
-        <Button
-          data-ocid="health.add_button"
-          onClick={() => {
-            setForm({ ...defaultForm, cowId: cowIdFilter?.toString() ?? "" });
-            setDialogOpen(true);
-          }}
-          className="gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          {t("addHealthRecord")}
-        </Button>
+        {canEdit && (
+          <Button
+            data-ocid="health.add_button"
+            onClick={() => {
+              setForm({ ...defaultForm, cowId: cowIdFilter?.toString() ?? "" });
+              setDialogOpen(true);
+            }}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            {t("addHealthRecord")}
+          </Button>
+        )}
       </div>
 
       {/* Records List */}

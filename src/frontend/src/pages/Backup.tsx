@@ -207,6 +207,7 @@ export default function Backup() {
             description: cow.description,
             tagNumber: cow.tagNumber ?? "",
             qrCode: cow.qrCode ?? "",
+            changedBy: "Backup Import",
           });
           cowIdMap[String(cow.id)] = newId;
           summary.cows++;
@@ -225,6 +226,7 @@ export default function Backup() {
             amount: don.amount,
             message: don.message ?? "",
             purpose: don.purpose ?? "",
+            changedBy: "Backup Import",
           });
           summary.donations++;
         } catch {
@@ -245,6 +247,7 @@ export default function Backup() {
             notes: hr.notes ?? "",
             status: hr.status ?? "",
             vetName: hr.vetName ?? "",
+            changedBy: "Backup Import",
           });
           summary.healthRecords++;
         } catch {
@@ -263,6 +266,7 @@ export default function Backup() {
             content: ann.content,
             contentHindi: ann.contentHindi,
             isActive: ann.isActive,
+            changedBy: "Backup Import",
           });
           summary.announcements++;
         } catch {

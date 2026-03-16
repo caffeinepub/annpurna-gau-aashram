@@ -5,17 +5,21 @@ import {
   Globe,
   HandCoins,
   HeartPulse,
+  History,
   LayoutDashboard,
+  LogOut,
   Megaphone,
   Menu,
   Milk,
   PawPrint,
   ScanLine,
+  Shield,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import type { Page } from "../App";
+import { useAuth } from "../lib/AuthContext";
 import { useLang } from "../lib/LanguageContext";
 
 interface LayoutProps {
@@ -24,11 +28,12 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
-const navItems: {
+const allNavItems: {
   id: Page;
   icon: React.ElementType;
   en: string;
   hi: string;
+  adminOnly?: boolean;
 }[] = [
   { id: "dashboard", icon: LayoutDashboard, en: "Dashboard", hi: "डैशबोर्ड" },
   { id: "cows", icon: PawPrint, en: "Gau Parivar", hi: "गाय परिवार" },
@@ -38,6 +43,8 @@ const navItems: {
   { id: "announcements", icon: Megaphone, en: "Ghoshna", hi: "घोषणा" },
   { id: "scanner", icon: ScanLine, en: "QR Scanner", hi: "QR स्कैनर" },
   { id: "backup", icon: Archive, en: "Backup", hi: "बैकअप" },
+  { id: "changelog", icon: History, en: "Changes", hi: "बदलाव" },
+  { id: "admin", icon: Shield, en: "Admin", hi: "व्यवस्थापक", adminOnly: true },
 ];
 
 const ocidMap: Record<Page, string> = {
@@ -49,22 +56,147 @@ const ocidMap: Record<Page, string> = {
   announcements: "nav.announcements.link",
   scanner: "nav.scanner.link",
   backup: "nav.backup.link",
+  changelog: "nav.changelog.link",
+  admin: "nav.admin.link",
 };
+
+function roleBadgeClass(role: string) {
+  const r = role.toLowerCase();
+  if (r === "admin") return "bg-orange-100 text-orange-700";
+  if (r === "editor") return "bg-green-100 text-green-700";
+  return "bg-gray-100 text-gray-600";
+}
+
+function roleLabel(role: string, lang: string) {
+  const r = role.toLowerCase();
+  if (lang === "hi") {
+    if (r === "admin") return "व्यवस्थापक";
+    if (r === "editor") return "संपादक";
+    return "देखने वाला";
+  }
+  if (r === "admin") return "Admin";
+  if (r === "editor") return "Editor";
+  return "Viewer";
+}
 
 export default function Layout({ page, setPage, children }: LayoutProps) {
   const { lang, setLang, t } = useLang();
+  const { currentUser, logout, isAdmin } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const toggleLang = () => setLang(lang === "en" ? "hi" : "en");
 
+  const navItems = allNavItems.filter((item) => {
+    if (item.adminOnly) return isAdmin;
+    return true;
+  });
+
+  const sidebarNav = (
+    <>
+      {/* Nav */}
+      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const active = page === item.id;
+          return (
+            <button
+              type="button"
+              key={item.id}
+              data-ocid={ocidMap[item.id]}
+              onClick={() => {
+                setPage(item.id);
+                setMobileOpen(false);
+              }}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                active
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+              )}
+            >
+              <Icon className="h-4 w-4 flex-shrink-0" />
+              <span>{lang === "hi" ? item.hi : item.en}</span>
+              {active && (
+                <motion.div
+                  layoutId="nav-indicator"
+                  className="ml-auto w-1.5 h-1.5 rounded-full bg-sidebar-primary-foreground/60"
+                />
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* User info + logout */}
+      {currentUser && (
+        <div className="px-3 pb-2 border-t border-sidebar-border pt-3">
+          <div className="flex items-center gap-2 px-2 py-1.5 mb-1">
+            <div className="w-8 h-8 rounded-full bg-sidebar-primary/20 flex items-center justify-center flex-shrink-0">
+              <span className="text-xs font-bold text-sidebar-foreground">
+                {currentUser.name.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-sidebar-foreground truncate">
+                {currentUser.name}
+              </p>
+              <span
+                className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${roleBadgeClass(currentUser.role)}`}
+              >
+                {roleLabel(currentUser.role, lang)}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            data-ocid="auth.logout.button"
+            onClick={logout}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/60 hover:bg-red-50 hover:text-red-600 text-sm font-medium transition-colors"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>{lang === "hi" ? "लॉग आउट" : "Log Out"}</span>
+          </button>
+        </div>
+      )}
+
+      {/* Language toggle */}
+      <div className="p-3 border-t border-sidebar-border">
+        <button
+          type="button"
+          data-ocid="lang.toggle"
+          onClick={toggleLang}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground text-sm font-medium transition-colors"
+        >
+          <Globe className="h-4 w-4" />
+          <span>{lang === "en" ? "Switch to हिन्दी" : "Switch to English"}</span>
+        </button>
+      </div>
+
+      {/* Footer */}
+      <div className="px-4 pb-4">
+        <p className="text-sidebar-foreground/40 text-xs text-center">
+          © {new Date().getFullYear()}{" "}
+          <a
+            href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-sidebar-foreground/60"
+          >
+            caffeine.ai
+          </a>
+        </p>
+      </div>
+    </>
+  );
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* ── Desktop Sidebar ────────────────────────────── */}
-      <aside className="hidden lg:flex flex-col w-64 sidebar-gradient shadow-sidebar flex-shrink-0">
+      {/* ── Desktop Sidebar ──────────────────────────────────────────── */}
+      <aside className="hidden lg:flex flex-col w-64 sidebar-gradient shadow-sm flex-shrink-0">
         {/* Logo Area */}
         <div className="p-5 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-sidebar-accent">
+            <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-sidebar-accent border border-sidebar-border">
               <img
                 src="/assets/generated/gaushala-logo-transparent.dim_120x120.png"
                 alt="Logo"
@@ -75,76 +207,16 @@ export default function Layout({ page, setPage, children }: LayoutProps) {
               <h1 className="text-sidebar-foreground font-display text-sm font-semibold leading-tight">
                 {t("appName")}
               </h1>
-              <p className="text-sidebar-foreground/60 text-xs mt-0.5">
+              <p className="text-sidebar-foreground/50 text-xs mt-0.5">
                 {lang === "hi" ? "गौ आश्रम प्रबंधन" : "Gaushala Management"}
               </p>
             </div>
           </div>
         </div>
-
-        {/* Nav */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = page === item.id;
-            return (
-              <button
-                type="button"
-                key={item.id}
-                data-ocid={ocidMap[item.id]}
-                onClick={() => setPage(item.id)}
-                className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                  active
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                )}
-              >
-                <Icon className="h-4 w-4 flex-shrink-0" />
-                <span>{lang === "hi" ? item.hi : item.en}</span>
-                {active && (
-                  <motion.div
-                    layoutId="nav-indicator"
-                    className="ml-auto w-1.5 h-1.5 rounded-full bg-sidebar-primary-foreground/60"
-                  />
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Language toggle */}
-        <div className="p-4 border-t border-sidebar-border">
-          <button
-            type="button"
-            data-ocid="lang.toggle"
-            onClick={toggleLang}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground text-sm font-medium transition-colors"
-          >
-            <Globe className="h-4 w-4" />
-            <span>
-              {lang === "en" ? "Switch to हिन्दी" : "Switch to English"}
-            </span>
-          </button>
-        </div>
-
-        {/* Footer */}
-        <div className="px-4 pb-4">
-          <p className="text-sidebar-foreground/40 text-xs text-center">
-            © {new Date().getFullYear()}{" "}
-            <a
-              href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline hover:text-sidebar-foreground/60"
-            >
-              caffeine.ai
-            </a>
-          </p>
-        </div>
+        {sidebarNav}
       </aside>
 
-      {/* ── Mobile Overlay Sidebar ──────────────────────── */}
+      {/* ── Mobile Overlay Sidebar ─────────────────────────────────────── */}
       <AnimatePresence>
         {mobileOpen && (
           <>
@@ -164,7 +236,7 @@ export default function Layout({ page, setPage, children }: LayoutProps) {
             >
               <div className="p-4 flex items-center justify-between border-b border-sidebar-border">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full overflow-hidden bg-sidebar-accent">
+                  <div className="w-9 h-9 rounded-full overflow-hidden bg-sidebar-accent border border-sidebar-border">
                     <img
                       src="/assets/generated/gaushala-logo-transparent.dim_120x120.png"
                       alt="Logo"
@@ -183,51 +255,13 @@ export default function Layout({ page, setPage, children }: LayoutProps) {
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              <nav className="flex-1 p-3 space-y-1">
-                {navItems.map((item) => {
-                  const Icon = item.icon;
-                  const active = page === item.id;
-                  return (
-                    <button
-                      type="button"
-                      key={item.id}
-                      data-ocid={ocidMap[item.id]}
-                      onClick={() => {
-                        setPage(item.id);
-                        setMobileOpen(false);
-                      }}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                        active
-                          ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                          : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                      <span>{lang === "hi" ? item.hi : item.en}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-              <div className="p-4 border-t border-sidebar-border">
-                <button
-                  type="button"
-                  data-ocid="lang.toggle"
-                  onClick={toggleLang}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent text-sm font-medium transition-colors"
-                >
-                  <Globe className="h-4 w-4" />
-                  <span>
-                    {lang === "en" ? "Switch to हिन्दी" : "Switch to English"}
-                  </span>
-                </button>
-              </div>
+              {sidebarNav}
             </motion.aside>
           </>
         )}
       </AnimatePresence>
 
-      {/* ── Main Content ───────────────────────────────── */}
+      {/* ── Main Content ───────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile Header */}
         <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-card border-b border-border shadow-xs">

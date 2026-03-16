@@ -2,13 +2,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   Announcement,
   Calf,
+  ChangeLog,
   Cow,
   Donation,
   HealthRecord,
+  User,
 } from "../backend.d";
 import { useActor } from "./useActor";
 
-// ── Cows ──────────────────────────────────────────────────────────────
+// ── Cows ────────────────────────────────────────────────────────────────────
 export function useGetAllCows() {
   const { actor, isFetching } = useActor();
   return useQuery<Cow[]>({
@@ -34,6 +36,7 @@ export function useAddCow() {
       description: string;
       tagNumber: string;
       qrCode: string;
+      changedBy: string;
     }) => {
       if (!actor) throw new Error("No actor");
       return actor.addCow(
@@ -44,9 +47,13 @@ export function useAddCow() {
         data.description,
         data.tagNumber,
         data.qrCode,
+        data.changedBy,
       );
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["cows"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["cows"] });
+      qc.invalidateQueries({ queryKey: ["changelogs"] });
+    },
   });
 }
 
@@ -63,6 +70,7 @@ export function useUpdateCow() {
       description: string;
       tagNumber: string;
       qrCode: string;
+      changedBy: string;
     }) => {
       if (!actor) throw new Error("No actor");
       return actor.updateCow(
@@ -74,9 +82,13 @@ export function useUpdateCow() {
         data.description,
         data.tagNumber,
         data.qrCode,
+        data.changedBy,
       );
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["cows"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["cows"] });
+      qc.invalidateQueries({ queryKey: ["changelogs"] });
+    },
   });
 }
 
@@ -84,18 +96,19 @@ export function useDeleteCow() {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: bigint) => {
+    mutationFn: async (data: { id: bigint; changedBy: string }) => {
       if (!actor) throw new Error("No actor");
-      return actor.deleteCow(id);
+      return actor.deleteCow(data.id, data.changedBy);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["cows"] });
       qc.invalidateQueries({ queryKey: ["health"] });
+      qc.invalidateQueries({ queryKey: ["changelogs"] });
     },
   });
 }
 
-// ── Donations ─────────────────────────────────────────────────────────
+// ── Donations ───────────────────────────────────────────────────────────────
 export function useGetAllDonations() {
   const { actor, isFetching } = useActor();
   return useQuery<Donation[]>({
@@ -118,6 +131,7 @@ export function useAddDonation() {
       amount: number;
       message: string;
       purpose: string;
+      changedBy: string;
     }) => {
       if (!actor) throw new Error("No actor");
       return actor.addDonation(
@@ -125,13 +139,17 @@ export function useAddDonation() {
         data.amount,
         data.message,
         data.purpose,
+        data.changedBy,
       );
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["donations"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["donations"] });
+      qc.invalidateQueries({ queryKey: ["changelogs"] });
+    },
   });
 }
 
-// ── Health Records ────────────────────────────────────────────────────
+// ── Health Records ───────────────────────────────────────────────────────────────
 export function useGetHealthRecordsByCow(cowId: bigint | null) {
   const { actor, isFetching } = useActor();
   return useQuery<HealthRecord[]>({
@@ -171,6 +189,7 @@ export function useAddHealthRecord() {
       notes: string;
       status: string;
       vetName: string;
+      changedBy: string;
     }) => {
       if (!actor) throw new Error("No actor");
       return actor.addHealthRecord(
@@ -178,15 +197,17 @@ export function useAddHealthRecord() {
         data.notes,
         data.status,
         data.vetName,
+        data.changedBy,
       );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["health"] });
+      qc.invalidateQueries({ queryKey: ["changelogs"] });
     },
   });
 }
 
-// ── Announcements ─────────────────────────────────────────────────────
+// ── Announcements ───────────────────────────────────────────────────────────────
 export function useGetActiveAnnouncements() {
   const { actor, isFetching } = useActor();
   return useQuery<Announcement[]>({
@@ -210,6 +231,7 @@ export function useAddAnnouncement() {
       content: string;
       contentHindi: string;
       isActive: boolean;
+      changedBy: string;
     }) => {
       if (!actor) throw new Error("No actor");
       return actor.addAnnouncement(
@@ -218,13 +240,17 @@ export function useAddAnnouncement() {
         data.content,
         data.contentHindi,
         data.isActive,
+        data.changedBy,
       );
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["announcements"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["announcements"] });
+      qc.invalidateQueries({ queryKey: ["changelogs"] });
+    },
   });
 }
 
-// ── Calves ────────────────────────────────────────────────────────────
+// ── Calves ────────────────────────────────────────────────────────────────────
 export function useGetCalvesByCow(cowId: bigint | null) {
   const { actor, isFetching } = useActor();
   return useQuery<Calf[]>({
@@ -249,6 +275,7 @@ export function useAddCalf() {
       gender: string;
       tagNumber: string;
       notes: string;
+      changedBy: string;
     }) => {
       if (!actor) throw new Error("No actor");
       return actor.addCalf(
@@ -258,12 +285,14 @@ export function useAddCalf() {
         data.gender,
         data.tagNumber,
         data.notes,
+        data.changedBy,
       );
     },
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({
         queryKey: ["calves", variables.cowId.toString()],
       });
+      qc.invalidateQueries({ queryKey: ["changelogs"] });
     },
   });
 }
@@ -272,12 +301,13 @@ export function useDeleteCalf() {
   const { actor } = useActor();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: bigint) => {
+    mutationFn: async (data: { id: bigint; changedBy: string }) => {
       if (!actor) throw new Error("No actor");
-      return actor.deleteCalf(id);
+      return actor.deleteCalf(data.id, data.changedBy);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["calves"] });
+      qc.invalidateQueries({ queryKey: ["changelogs"] });
     },
   });
 }
@@ -289,5 +319,57 @@ export function useGetCowByTag() {
       if (!actor) throw new Error("No actor");
       return actor.getCowByTag(tag);
     },
+  });
+}
+
+// ── Users ───────────────────────────────────────────────────────────────────
+export function useGetAllUsers() {
+  const { actor, isFetching } = useActor();
+  return useQuery<User[]>({
+    queryKey: ["users"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAllUsers();
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 60000,
+  });
+}
+
+export function useCreateUser() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { name: string; role: string; pin: string }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.createUser(data.name, data.role, data.pin);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+export function useDeleteUser() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("No actor");
+      return actor.deleteUser(id);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+// ── Change Logs ──────────────────────────────────────────────────────────────
+export function useGetAllChangeLogs() {
+  const { actor, isFetching } = useActor();
+  return useQuery<ChangeLog[]>({
+    queryKey: ["changelogs"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getAllChangeLogs();
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 30000,
   });
 }

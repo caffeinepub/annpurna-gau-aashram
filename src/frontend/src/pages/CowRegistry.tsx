@@ -54,6 +54,7 @@ import {
   useGetCalvesByCow,
   useUpdateCow,
 } from "../hooks/useQueries";
+import { useAuth } from "../lib/AuthContext";
 import { useLang } from "../lib/LanguageContext";
 import {
   calcAgeFromBirth,
@@ -66,6 +67,7 @@ interface CowRegistryProps {
   onViewHealth: (id: bigint) => void;
   prakarFilter?: string | null;
   onClearPrakarFilter?: () => void;
+  changedBy: string;
 }
 
 const defaultForm = {
@@ -241,8 +243,10 @@ export default function CowRegistry({
   onViewHealth,
   prakarFilter,
   onClearPrakarFilter,
+  changedBy,
 }: CowRegistryProps) {
   const { t, lang } = useLang();
+  const { canEdit } = useAuth();
   const { data: cows = [], isLoading } = useGetAllCows();
   const addCow = useAddCow();
   const updateCow = useUpdateCow();
@@ -350,6 +354,7 @@ export default function CowRegistry({
           description: form.description,
           tagNumber: form.tagNumber,
           qrCode: form.qrCode,
+          changedBy,
         });
         toast.success(t("cowUpdated"));
       } else {
@@ -361,6 +366,7 @@ export default function CowRegistry({
           description: form.description,
           tagNumber: form.tagNumber,
           qrCode: form.qrCode,
+          changedBy,
         });
         toast.success(t("cowAdded"));
       }
@@ -373,7 +379,7 @@ export default function CowRegistry({
   async function handleDelete() {
     if (deleteId === null) return;
     try {
-      await deleteCow.mutateAsync(deleteId);
+      await deleteCow.mutateAsync({ id: deleteId, changedBy });
       toast.success(t("cowDeleted"));
       setDeleteId(null);
     } catch {
@@ -398,6 +404,7 @@ export default function CowRegistry({
         gender: calfForm.gender,
         tagNumber: calfForm.tagNumber,
         notes: calfForm.notes,
+        changedBy,
       });
       toast.success(t("calfAdded"));
       setCalfForm(defaultCalfForm);
@@ -408,7 +415,7 @@ export default function CowRegistry({
 
   async function handleDeleteCalf(id: bigint) {
     try {
-      await deleteCalf.mutateAsync(id);
+      await deleteCalf.mutateAsync({ id, changedBy });
       toast.success(t("calfDeleted"));
     } catch {
       toast.error(t("error"));
@@ -458,14 +465,16 @@ export default function CowRegistry({
               : `${cows.length} cows registered`}
           </p>
         </div>
-        <Button
-          data-ocid="cow.add_button"
-          onClick={openAdd}
-          className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
-        >
-          <Plus className="h-4 w-4" />
-          {t("addCow")}
-        </Button>
+        {canEdit && (
+          <Button
+            data-ocid="cow.add_button"
+            onClick={openAdd}
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            <Plus className="h-4 w-4" />
+            {t("addCow")}
+          </Button>
+        )}
       </div>
 
       {/* Search */}

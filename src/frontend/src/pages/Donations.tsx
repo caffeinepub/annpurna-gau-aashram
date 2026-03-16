@@ -15,13 +15,15 @@ import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAddDonation, useGetAllDonations } from "../hooks/useQueries";
+import { useAuth } from "../lib/AuthContext";
 import { useLang } from "../lib/LanguageContext";
 import { formatCurrency, formatTime } from "../utils/timeUtils";
 
 const defaultForm = { donorName: "", amount: "", message: "", purpose: "" };
 
-export default function Donations() {
+export default function Donations({ changedBy }: { changedBy: string }) {
   const { t, lang } = useLang();
+  const { canEdit } = useAuth();
   const { data: donations = [], isLoading } = useGetAllDonations();
   const addDonation = useAddDonation();
 
@@ -38,6 +40,7 @@ export default function Donations() {
         amount: Number.parseFloat(form.amount) || 0,
         message: form.message,
         purpose: form.purpose,
+        changedBy,
       });
       toast.success(t("donationAdded"));
       setDialogOpen(false);
@@ -62,14 +65,16 @@ export default function Donations() {
               : `${donations.length} donations recorded`}
           </p>
         </div>
-        <Button
-          data-ocid="donation.add_button"
-          onClick={() => setDialogOpen(true)}
-          className="gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          {t("addDonation")}
-        </Button>
+        {canEdit && (
+          <Button
+            data-ocid="donation.add_button"
+            onClick={() => setDialogOpen(true)}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            {t("addDonation")}
+          </Button>
+        )}
       </div>
 
       {/* Total Card */}

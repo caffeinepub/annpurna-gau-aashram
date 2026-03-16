@@ -9,6 +9,7 @@ import {
   PawPrint as CowIcon,
   FlipHorizontal,
   QrCode,
+  RotateCcw,
   ScanLine,
   Search,
   Tag,
@@ -188,7 +189,6 @@ export default function QRScanner() {
 
   const { videoRef, canvasRef } = scanner;
 
-  // Watch qrResults for new scans
   const lastResultRef = useRef<string>("");
   useEffect(() => {
     if (scanner.qrResults.length === 0) return;
@@ -217,6 +217,13 @@ export default function QRScanner() {
   function handleStop() {
     scanner.stopScanning();
     setFoundCow(undefined);
+    lastResultRef.current = "";
+  }
+
+  function handleScanAgain() {
+    setFoundCow(undefined);
+    setLastScanned("");
+    setManualInput("");
     lastResultRef.current = "";
   }
 
@@ -252,10 +259,10 @@ export default function QRScanner() {
           className="hidden"
         />
 
-        {/* Scanning overlay */}
+        {/* Scanning overlay — larger frame */}
         {scanner.isActive && scanner.isScanning && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="relative w-48 h-48">
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-4">
+            <div className="relative w-64 h-64">
               <div className="absolute inset-0 border-2 border-primary/70 rounded-xl" />
               <motion.div
                 className="absolute left-0 right-0 h-0.5 bg-primary shadow-[0_0_8px_2px_rgba(var(--primary),0.5)]"
@@ -268,11 +275,17 @@ export default function QRScanner() {
                 }}
               />
               {/* Corner decorations */}
-              <div className="absolute top-0 left-0 w-5 h-5 border-primary border-2 border-r-0 border-b-0 rounded-tl-sm" />
-              <div className="absolute top-0 right-0 w-5 h-5 border-primary border-2 border-l-0 border-b-0 rounded-tr-sm" />
-              <div className="absolute bottom-0 left-0 w-5 h-5 border-primary border-2 border-r-0 border-t-0 rounded-bl-sm" />
-              <div className="absolute bottom-0 right-0 w-5 h-5 border-primary border-2 border-l-0 border-t-0 rounded-br-sm" />
+              <div className="absolute top-0 left-0 w-6 h-6 border-primary border-2 border-r-0 border-b-0 rounded-tl-sm" />
+              <div className="absolute top-0 right-0 w-6 h-6 border-primary border-2 border-l-0 border-b-0 rounded-tr-sm" />
+              <div className="absolute bottom-0 left-0 w-6 h-6 border-primary border-2 border-r-0 border-t-0 rounded-bl-sm" />
+              <div className="absolute bottom-0 right-0 w-6 h-6 border-primary border-2 border-l-0 border-t-0 rounded-br-sm" />
             </div>
+            {/* Instruction hint below frame */}
+            <p className="text-white/80 text-xs text-center px-4 bg-black/40 rounded-lg py-1.5">
+              {lang === "hi"
+                ? "Tag या QR Code frame के अंदर रखो"
+                : "Place tag or QR code inside the frame"}
+            </p>
           </div>
         )}
 
@@ -433,11 +446,23 @@ export default function QRScanner() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-sm font-semibold text-green-700">
-                  {t("cowFound")}
-                </span>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-sm font-semibold text-green-700">
+                    {t("cowFound")}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleScanAgain}
+                  data-ocid="scanner.start.button"
+                  className="gap-1.5 text-xs"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  {lang === "hi" ? "दोबारा स्कैन करो" : "Scan Again"}
+                </Button>
               </div>
               <CowResultCard cow={foundCow} lang={lang} />
             </motion.div>
@@ -461,6 +486,16 @@ export default function QRScanner() {
                   "{lastScanned}"
                 </p>
               )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleScanAgain}
+                data-ocid="scanner.start.button"
+                className="gap-1.5 text-xs mt-1"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                {lang === "hi" ? "दोबारा स्कैन करो" : "Scan Again"}
+              </Button>
             </motion.div>
           ))}
       </AnimatePresence>

@@ -19,6 +19,7 @@ import {
   useAddAnnouncement,
   useGetActiveAnnouncements,
 } from "../hooks/useQueries";
+import { useAuth } from "../lib/AuthContext";
 import { useLang } from "../lib/LanguageContext";
 import { formatTime } from "../utils/timeUtils";
 
@@ -30,8 +31,9 @@ const defaultForm = {
   isActive: true,
 };
 
-export default function Announcements() {
+export default function Announcements({ changedBy }: { changedBy: string }) {
   const { t, lang } = useLang();
+  const { canEdit } = useAuth();
   const { data: announcements = [], isLoading } = useGetActiveAnnouncements();
   const addAnnouncement = useAddAnnouncement();
 
@@ -47,6 +49,7 @@ export default function Announcements() {
         content: form.content,
         contentHindi: form.contentHindi,
         isActive: form.isActive,
+        changedBy,
       });
       toast.success(t("announcementAdded"));
       setDialogOpen(false);
@@ -71,14 +74,16 @@ export default function Announcements() {
               : `${announcements.length} active announcements`}
           </p>
         </div>
-        <Button
-          data-ocid="announcement.add_button"
-          onClick={() => setDialogOpen(true)}
-          className="gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          {t("addAnnouncement")}
-        </Button>
+        {canEdit && (
+          <Button
+            data-ocid="announcement.add_button"
+            onClick={() => setDialogOpen(true)}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            {t("addAnnouncement")}
+          </Button>
+        )}
       </div>
 
       {/* Announcement Cards */}

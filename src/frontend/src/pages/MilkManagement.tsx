@@ -61,6 +61,7 @@ export default function MilkManagement() {
 
   const [selectedDate, setSelectedDate] = useState<string>(todayKey());
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [savedRows, setSavedRows] = useState<Set<string>>(new Set());
 
   // Only show Lactating cows
   const lactatingCows = allCows.filter((c) => c.healthStatus === "Lactating");
@@ -109,6 +110,15 @@ export default function MilkManagement() {
     toast.success(
       lang === "hi" ? `${cow.name} का दूध सहेजा गया` : `${cow.name} milk saved`,
     );
+    // Show "सहेजा गया ✓" feedback for 2 seconds
+    setSavedRows((prev) => new Set(prev).add(id));
+    setTimeout(() => {
+      setSavedRows((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }, 2000);
   }
 
   // ── Totals ─────────────────────────────────────────────────────────
@@ -236,7 +246,7 @@ export default function MilkManagement() {
         </div>
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center flex flex-col items-center justify-center">
           <div className="text-amber-600 text-xs font-medium mb-1 flex items-center gap-1">
-            <Sun className="h-3 w-3" /> {lang === "hi" ? "सवार" : "Morning"}
+            <Sun className="h-3 w-3" /> {lang === "hi" ? "सुबह" : "Morning"}
           </div>
           <div className="text-amber-700 text-2xl font-bold font-display">
             {totals.morning.toFixed(1)}
@@ -247,7 +257,7 @@ export default function MilkManagement() {
         </div>
         <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 text-center flex flex-col items-center justify-center">
           <div className="text-indigo-600 text-xs font-medium mb-1 flex items-center gap-1">
-            <Moon className="h-3 w-3" /> {lang === "hi" ? "सांज" : "Evening"}
+            <Moon className="h-3 w-3" /> {lang === "hi" ? "शाम" : "Evening"}
           </div>
           <div className="text-indigo-700 text-2xl font-bold font-display">
             {totals.evening.toFixed(1)}
@@ -298,13 +308,13 @@ export default function MilkManagement() {
                 <th className="text-center px-3 py-3 font-semibold text-amber-700">
                   <div className="flex items-center justify-center gap-1">
                     <Sun className="h-3.5 w-3.5" />
-                    {lang === "hi" ? "सवार" : "Morning"}
+                    {lang === "hi" ? "सुबह" : "Morning"}
                   </div>
                 </th>
                 <th className="text-center px-3 py-3 font-semibold text-indigo-700">
                   <div className="flex items-center justify-center gap-1">
                     <Moon className="h-3.5 w-3.5" />
-                    {lang === "hi" ? "सांज" : "Evening"}
+                    {lang === "hi" ? "शाम" : "Evening"}
                   </div>
                 </th>
                 <th className="text-center px-3 py-3 font-semibold text-foreground">
@@ -322,6 +332,7 @@ export default function MilkManagement() {
                   (Number.parseFloat(evening) || 0);
                 const stored = getStoredMilk(cow.id.toString(), selectedDate);
                 const hasStoredData = stored.morning > 0 || stored.evening > 0;
+                const isSaved = savedRows.has(cow.id.toString());
                 return (
                   <motion.tr
                     key={cow.id.toString()}
@@ -391,11 +402,22 @@ export default function MilkManagement() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-8 text-xs px-3 text-primary border-primary/30 hover:bg-primary/10"
+                        className={cn(
+                          "h-8 text-xs px-3 transition-all duration-200",
+                          isSaved
+                            ? "text-green-700 border-green-400 bg-green-50 hover:bg-green-50"
+                            : "text-primary border-primary/30 hover:bg-primary/10",
+                        )}
                         onClick={() => saveInline(cow)}
                         data-ocid={`milk.save_button.${idx + 1}`}
                       >
-                        {lang === "hi" ? "सहेजें" : "Save"}
+                        {isSaved
+                          ? lang === "hi"
+                            ? "सहेजा गया ✓"
+                            : "Saved ✓"
+                          : lang === "hi"
+                            ? "सहेजें"
+                            : "Save"}
                       </Button>
                     </td>
                   </motion.tr>
@@ -469,7 +491,7 @@ export default function MilkManagement() {
                     <div className="space-y-1">
                       <Label className="text-xs text-amber-700 flex items-center gap-1">
                         <Sun className="h-3 w-3" />
-                        {lang === "hi" ? "सवार (ली.)" : "Morning (L)"}
+                        {lang === "hi" ? "सुबह (ली.)" : "Morning (L)"}
                       </Label>
                       <Input
                         type="number"
@@ -493,7 +515,7 @@ export default function MilkManagement() {
                     <div className="space-y-1">
                       <Label className="text-xs text-indigo-700 flex items-center gap-1">
                         <Moon className="h-3 w-3" />
-                        {lang === "hi" ? "सांज (ली.)" : "Evening (L)"}
+                        {lang === "hi" ? "शाम (ली.)" : "Evening (L)"}
                       </Label>
                       <Input
                         type="number"
