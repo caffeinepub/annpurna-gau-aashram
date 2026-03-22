@@ -1,11 +1,31 @@
 import { Delete } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { User } from "../backend.d";
 import { useActor } from "../hooks/useActor";
 import { useAuth } from "../lib/AuthContext";
 import { useLang } from "../lib/LanguageContext";
+
+// Retry helper: retries an async fn up to `times` times with `delayMs` between attempts
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  times = 3,
+  delayMs = 1200,
+): Promise<T> {
+  let lastError: unknown;
+  for (let i = 0; i < times; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (i < times - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  throw lastError;
+}
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -17,15 +37,16 @@ export default function LoginPage() {
   const [adminReady, setAdminReady] = useState(false);
   const [matchedUsers, setMatchedUsers] = useState<User[]>([]);
   const [showUserPick, setShowUserPick] = useState(false);
+  const ensureCalledRef = useRef(false);
 
   useEffect(() => {
-    if (actor) {
-      setAdminReady(false);
-      actor
-        .ensureDefaultAdmin()
-        .then(() => setAdminReady(true))
-        .catch(() => setAdminReady(true));
-    }
+    if (!actor || ensureCalledRef.current) return;
+    ensureCalledRef.current = true;
+    setAdminReady(false);
+    // Retry ensureDefaultAdmin up to 3 times in case canister is slow on first wake
+    withRetry(() => actor.ensureDefaultAdmin(), 3, 1500)
+      .then(() => setAdminReady(true))
+      .catch(() => setAdminReady(true)); // even on error, allow login attempt
   }, [actor]);
 
   async function handleDigit(d: string) {
@@ -46,18 +67,38 @@ export default function LoginPage() {
           setIsLoading(false);
           return;
         }
-        // Try getUsersByPin first (multi-user support), fallback to getUserByPin
+
+        // Use retry so transient canister errors don't block login
         let users: User[] = [];
         try {
-          const res = await (actor as any).getUsersByPin(newPin);
+          const res = await withRetry(
+            () => (actor as any).getUsersByPin(newPin),
+            3,
+            1000,
+          );
           users = Array.isArray(res) ? res : [];
         } catch {
-          // fallback: use getUserByPin
-          const result = await actor.getUserByPin(newPin);
-          const user =
-            Array.isArray(result) && result.length > 0 ? result[0] : result;
-          if (user && (user as User).id !== undefined) {
-            users = [user as User];
+          // fallback: try getUserByPin with retry
+          try {
+            const result = await withRetry(
+              () => actor.getUserByPin(newPin),
+              3,
+              1000,
+            );
+            const user =
+              Array.isArray(result) && result.length > 0 ? result[0] : result;
+            if (user && (user as User).id !== undefined) {
+              users = [user as User];
+            }
+          } catch {
+            setError(
+              lang === "hi"
+                ? "सर्वर से कनेक्ट नहीं हो पाया, दोबारा कोशिश करें"
+                : "Could not connect to server, please try again",
+            );
+            setPin("");
+            setIsLoading(false);
+            return;
           }
         }
 
@@ -73,12 +114,15 @@ export default function LoginPage() {
             lang === "hi" ? `स्वागत है, ${u.name}!` : `Welcome, ${u.name}!`,
           );
         } else {
-          // Multiple users with same PIN — show selection screen
           setMatchedUsers(users);
           setShowUserPick(true);
         }
       } catch {
-        setError(lang === "hi" ? "कुछ गलत हुआ" : "Something went wrong");
+        setError(
+          lang === "hi"
+            ? "सर्वर से कनेक्ट नहीं हो पाया, दोबारा कोशिश करें"
+            : "Could not connect, please try again",
+        );
         setPin("");
       } finally {
         setIsLoading(false);
@@ -158,7 +202,6 @@ export default function LoginPage() {
 
         <AnimatePresence mode="wait">
           {showUserPick ? (
-            /* ---- User Selection Screen ---- */
             <motion.div
               key="userpick"
               initial={{ opacity: 0, x: 30 }}
@@ -212,7 +255,6 @@ export default function LoginPage() {
               </button>
             </motion.div>
           ) : (
-            /* ---- PIN Entry Screen ---- */
             <motion.div
               key="pinentry"
               initial={{ opacity: 0, x: -30 }}
@@ -220,7 +262,6 @@ export default function LoginPage() {
               exit={{ opacity: 0, x: 30 }}
               transition={{ duration: 0.25 }}
             >
-              {/* PIN Label */}
               <p className="text-center text-sm font-medium text-muted-foreground mb-4">
                 {!isReady
                   ? lang === "hi"
@@ -231,7 +272,6 @@ export default function LoginPage() {
                     : "Enter your 6-digit PIN"}
               </p>
 
-              {/* PIN Dots — 6 dots */}
               <div className="flex justify-center gap-3 mb-6">
                 {[0, 1, 2, 3, 4, 5].map((i) => (
                   <motion.div
@@ -249,7 +289,6 @@ export default function LoginPage() {
                 ))}
               </div>
 
-              {/* Error */}
               <AnimatePresence>
                 {error && (
                   <motion.p
@@ -264,7 +303,6 @@ export default function LoginPage() {
                 )}
               </AnimatePresence>
 
-              {/* Loading */}
               {isLoading && (
                 <p
                   data-ocid="login.loading_state"
@@ -274,14 +312,12 @@ export default function LoginPage() {
                 </p>
               )}
 
-              {/* Initializing indicator */}
               {!isReady && !isLoading && (
                 <p className="text-center text-xs text-muted-foreground mb-4 animate-pulse">
                   {lang === "hi" ? "कृपया प्रतीक्षा करें..." : "Please wait..."}
                 </p>
               )}
 
-              {/* Number Pad */}
               <div className="grid grid-cols-3 gap-3">
                 {digitRows.flat().map((d, rowIdx) => {
                   const key = d === "" ? `empty-${rowIdx}` : d;

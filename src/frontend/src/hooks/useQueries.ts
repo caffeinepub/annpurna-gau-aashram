@@ -5,12 +5,14 @@ import type {
   ChangeLog,
   Cow,
   Donation,
+  FeedHistory,
+  FeedStock,
   HealthRecord,
   User,
 } from "../backend.d";
 import { useActor } from "./useActor";
 
-// ── Cows ────────────────────────────────────────────────────────────────────
+// ── Cows ──────────────────────────────────────────────────────────────────────────
 export function useGetAllCows() {
   const { actor, isFetching } = useActor();
   return useQuery<Cow[]>({
@@ -108,7 +110,7 @@ export function useDeleteCow() {
   });
 }
 
-// ── Donations ───────────────────────────────────────────────────────────────
+// ── Donations ─────────────────────────────────────────────────────────────────────────
 export function useGetAllDonations() {
   const { actor, isFetching } = useActor();
   return useQuery<Donation[]>({
@@ -149,7 +151,7 @@ export function useAddDonation() {
   });
 }
 
-// ── Health Records ───────────────────────────────────────────────────────────────
+// ── Health Records ─────────────────────────────────────────────────────────────────────────
 export function useGetHealthRecordsByCow(cowId: bigint | null) {
   const { actor, isFetching } = useActor();
   return useQuery<HealthRecord[]>({
@@ -218,7 +220,7 @@ export function useAddHealthRecord() {
   });
 }
 
-// ── Announcements ───────────────────────────────────────────────────────────────
+// ── Announcements ─────────────────────────────────────────────────────────────────────────
 export function useGetActiveAnnouncements() {
   const { actor, isFetching } = useActor();
   return useQuery<Announcement[]>({
@@ -261,7 +263,7 @@ export function useAddAnnouncement() {
   });
 }
 
-// ── Calves ────────────────────────────────────────────────────────────────────
+// ── Calves ──────────────────────────────────────────────────────────────────────────
 export function useGetCalvesByCow(cowId: bigint | null) {
   const { actor, isFetching } = useActor();
   return useQuery<Calf[]>({
@@ -346,7 +348,7 @@ export function useGetCowById() {
     },
   });
 }
-// ── Users ───────────────────────────────────────────────────────────────────
+// ── Users ─────────────────────────────────────────────────────────────────────────
 export function useGetAllUsers() {
   const { actor, isFetching } = useActor();
   return useQuery<User[]>({
@@ -357,6 +359,19 @@ export function useGetAllUsers() {
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 60000,
+  });
+}
+
+export function useGetOnlineUsers() {
+  const { actor, isFetching } = useActor();
+  return useQuery<bigint[]>({
+    queryKey: ["onlineUsers"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return (actor as any).getOnlineUsers() as Promise<bigint[]>;
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 30000,
   });
 }
 
@@ -403,7 +418,7 @@ export function useChangeUserPin() {
   });
 }
 
-// ── Change Logs ──────────────────────────────────────────────────────────────
+// ── Change Logs ────────────────────────────────────────────────────────────────────────
 export function useGetAllChangeLogs() {
   const { actor, isFetching } = useActor();
   return useQuery<ChangeLog[]>({
@@ -414,5 +429,107 @@ export function useGetAllChangeLogs() {
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 30000,
+  });
+}
+
+// ── Feed Management ────────────────────────────────────────────────────────────────────────
+export function useGetFeedStocks() {
+  const { actor, isFetching } = useActor();
+  return useQuery<FeedStock[]>({
+    queryKey: ["feedStocks"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getFeedStocks();
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 30000,
+  });
+}
+
+export function useGetFeedHistory() {
+  const { actor, isFetching } = useActor();
+  return useQuery<FeedHistory[]>({
+    queryKey: ["feedHistory"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getFeedHistory();
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 30000,
+  });
+}
+
+export function useAddFeedStock() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      feedType: string;
+      quantity: number;
+      notes: string;
+      recordedBy: string;
+    }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.addFeedStockQuantity(
+        data.feedType,
+        data.quantity,
+        data.notes,
+        data.recordedBy,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["feedStocks"] }).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["feedHistory"] }).catch(() => {});
+    },
+  });
+}
+
+export function useRecordFeedConsumption() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      feedType: string;
+      quantity: number;
+      notes: string;
+      recordedBy: string;
+    }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.recordFeedConsumption(
+        data.feedType,
+        data.quantity,
+        data.notes,
+        data.recordedBy,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["feedStocks"] }).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["feedHistory"] }).catch(() => {});
+    },
+  });
+}
+
+export function useUpdateFeedStock() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      feedType: string;
+      totalStock: number;
+      dailyPerCow: number;
+      updatedBy: string;
+    }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.updateFeedStock(
+        data.feedType,
+        data.totalStock,
+        data.dailyPerCow,
+        data.updatedBy,
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["feedStocks"] }).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["feedHistory"] }).catch(() => {});
+    },
   });
 }

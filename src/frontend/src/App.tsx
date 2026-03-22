@@ -11,6 +11,7 @@ import ChangeLogPage from "./pages/ChangeLogPage";
 import CowRegistry from "./pages/CowRegistry";
 import Dashboard from "./pages/Dashboard";
 import Donations from "./pages/Donations";
+import FeedManagement from "./pages/FeedManagement";
 import HealthRecords from "./pages/HealthRecords";
 import LoginPage from "./pages/LoginPage";
 import MilkManagement from "./pages/MilkManagement";
@@ -25,6 +26,7 @@ export type Page =
   | "donations"
   | "announcements"
   | "milk"
+  | "feed"
   | "scanner"
   | "backup"
   | "changelog"
@@ -80,6 +82,7 @@ function AppContent() {
       {page === "donations" && <Donations changedBy={changedBy} />}
       {page === "announcements" && <Announcements changedBy={changedBy} />}
       {page === "milk" && <MilkManagement />}
+      {page === "feed" && <FeedManagement />}
       {page === "scanner" && <QRScanner />}
       {page === "backup" && <Backup />}
       {page === "changelog" && <ChangeLogPage />}

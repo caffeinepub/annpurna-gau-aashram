@@ -13,14 +13,14 @@ import { useLang } from "../lib/LanguageContext";
 import { useQRScanner } from "../qr-code/useQRScanner";
 
 function formatAgpId(id: bigint): string {
-  return `AGP${id.toString().padStart(5, "0")}`;
+  return `AGA${id.toString().padStart(5, "0")}`;
 }
 
 function parseAgpId(input: string): bigint | null {
   const match = input
     .trim()
     .toUpperCase()
-    .match(/^AGP(\d+)$/);
+    .match(/^AGA(\d+)$/);
   if (match) return BigInt(Number.parseInt(match[1], 10));
   return null;
 }
@@ -212,8 +212,8 @@ export default function VanshavaliPage() {
       </div>
       <p className="text-sm text-amber-700">
         {lang === "hi"
-          ? "AGP00001 ID, टैग नंबर, या QR स्कैन करके गाय की संतान की सूची देखें"
-          : "Search by AGP ID, tag number, or scan QR to see offspring list"}
+          ? "AGA00001 ID, टैग नंबर, या QR स्कैन करके गाय की संतान की सूची देखें"
+          : "Search by AGA ID, tag number, or scan QR to see offspring list"}
       </p>
 
       {/* QR Scanner */}
@@ -227,8 +227,8 @@ export default function VanshavaliPage() {
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
           placeholder={
             lang === "hi"
-              ? "AGP00001 या टैग नंबर दर्ज करें"
-              : "Enter AGP00001 or Tag Number"
+              ? "AGA00001 या टैग नंबर दर्ज करें"
+              : "Enter AGA00001 or Tag Number"
           }
           className="border-amber-300 focus:ring-green-500"
           data-ocid="vanshavali.search_input"
@@ -264,8 +264,8 @@ export default function VanshavaliPage() {
           </p>
           <p className="text-xs mt-1">
             {lang === "hi"
-              ? "AGP ID या टैग नंबर जाँचें और फिर कोशिश करें"
-              : "Check the AGP ID or tag number and try again"}
+              ? "AGA ID या टैग नंबर जाँचें और फिर कोशिश करें"
+              : "Check the AGA ID or tag number and try again"}
           </p>
         </div>
       )}

@@ -18,9 +18,9 @@ import type { Cow } from "../backend.d";
 import { useGetAllCows } from "../hooks/useQueries";
 import { useLang } from "../lib/LanguageContext";
 
-// ── AGP ID helper ─────────────────────────────────────────────────────
+// ── AGA ID helper ─────────────────────────────────────────────────────
 function getAgpId(cow: Cow): string {
-  return `AGP${String(cow.id).padStart(5, "0")}`;
+  return `AGA${String(cow.id).padStart(5, "0")}`;
 }
 
 // ── localStorage helpers ──────────────────────────────────────────────

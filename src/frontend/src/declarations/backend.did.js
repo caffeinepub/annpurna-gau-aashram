@@ -72,6 +72,23 @@ export const Calf = IDL.Record({
   'addedDate' : Time,
   'tagNumber' : IDL.Text,
 });
+export const FeedHistory = IDL.Record({
+  'id' : IDL.Nat,
+  'action' : IDL.Text,
+  'date' : Time,
+  'feedType' : IDL.Text,
+  'recordedBy' : IDL.Text,
+  'notes' : IDL.Text,
+  'quantity' : IDL.Float64,
+});
+export const FeedStock = IDL.Record({
+  'id' : IDL.Nat,
+  'lastUpdated' : Time,
+  'feedType' : IDL.Text,
+  'updatedBy' : IDL.Text,
+  'totalStock' : IDL.Float64,
+  'dailyPerCow' : IDL.Float64,
+});
 export const HealthRecord = IDL.Record({
   'id' : IDL.Nat,
   'status' : IDL.Text,
@@ -125,6 +142,11 @@ export const idlService = IDL.Service({
       [IDL.Nat],
       [],
     ),
+  'addFeedStockQuantity' : IDL.Func(
+      [IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
   'addHealthRecord' : IDL.Func(
       [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
       [IDL.Nat],
@@ -153,6 +175,8 @@ export const idlService = IDL.Service({
   'getCow' : IDL.Func([IDL.Nat], [Cow], ['query']),
   'getCowByTag' : IDL.Func([IDL.Text], [IDL.Opt(Cow)], ['query']),
   'getDonation' : IDL.Func([IDL.Nat], [Donation], ['query']),
+  'getFeedHistory' : IDL.Func([], [IDL.Vec(FeedHistory)], ['query']),
+  'getFeedStocks' : IDL.Func([], [IDL.Vec(FeedStock)], ['query']),
   'getHealthRecord' : IDL.Func([IDL.Nat], [HealthRecord], ['query']),
   'getHealthRecordsByCow' : IDL.Func(
       [IDL.Nat],
@@ -164,10 +188,17 @@ export const idlService = IDL.Service({
       [IDL.Vec(MilkRecord)],
       ['query'],
     ),
+  'getOnlineUsers' : IDL.Func([], [IDL.Vec(IDL.Nat)], ['query']),
   'getProfile' : IDL.Func([], [GaushaalaProfile], ['query']),
   'getTodayMilkRecords' : IDL.Func([], [IDL.Vec(MilkRecord)], ['query']),
   'getUserByPin' : IDL.Func([IDL.Text], [IDL.Opt(User)], ['query']),
   'getUsersByPin' : IDL.Func([IDL.Text], [IDL.Vec(User)], ['query']),
+  'recordFeedConsumption' : IDL.Func(
+      [IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
+  'sendHeartbeat' : IDL.Func([IDL.Nat], [], []),
   'updateCow' : IDL.Func(
       [
         IDL.Nat,
@@ -180,6 +211,11 @@ export const idlService = IDL.Service({
         IDL.Text,
         IDL.Text,
       ],
+      [],
+      [],
+    ),
+  'updateFeedStock' : IDL.Func(
+      [IDL.Text, IDL.Float64, IDL.Float64, IDL.Text],
       [],
       [],
     ),
@@ -266,6 +302,23 @@ export const idlFactory = ({ IDL }) => {
     'addedDate' : Time,
     'tagNumber' : IDL.Text,
   });
+  const FeedHistory = IDL.Record({
+    'id' : IDL.Nat,
+    'action' : IDL.Text,
+    'date' : Time,
+    'feedType' : IDL.Text,
+    'recordedBy' : IDL.Text,
+    'notes' : IDL.Text,
+    'quantity' : IDL.Float64,
+  });
+  const FeedStock = IDL.Record({
+    'id' : IDL.Nat,
+    'lastUpdated' : Time,
+    'feedType' : IDL.Text,
+    'updatedBy' : IDL.Text,
+    'totalStock' : IDL.Float64,
+    'dailyPerCow' : IDL.Float64,
+  });
   const HealthRecord = IDL.Record({
     'id' : IDL.Nat,
     'status' : IDL.Text,
@@ -319,6 +372,11 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Nat],
         [],
       ),
+    'addFeedStockQuantity' : IDL.Func(
+        [IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
     'addHealthRecord' : IDL.Func(
         [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
         [IDL.Nat],
@@ -347,6 +405,8 @@ export const idlFactory = ({ IDL }) => {
     'getCow' : IDL.Func([IDL.Nat], [Cow], ['query']),
     'getCowByTag' : IDL.Func([IDL.Text], [IDL.Opt(Cow)], ['query']),
     'getDonation' : IDL.Func([IDL.Nat], [Donation], ['query']),
+    'getFeedHistory' : IDL.Func([], [IDL.Vec(FeedHistory)], ['query']),
+    'getFeedStocks' : IDL.Func([], [IDL.Vec(FeedStock)], ['query']),
     'getHealthRecord' : IDL.Func([IDL.Nat], [HealthRecord], ['query']),
     'getHealthRecordsByCow' : IDL.Func(
         [IDL.Nat],
@@ -358,10 +418,17 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(MilkRecord)],
         ['query'],
       ),
+    'getOnlineUsers' : IDL.Func([], [IDL.Vec(IDL.Nat)], ['query']),
     'getProfile' : IDL.Func([], [GaushaalaProfile], ['query']),
     'getTodayMilkRecords' : IDL.Func([], [IDL.Vec(MilkRecord)], ['query']),
     'getUserByPin' : IDL.Func([IDL.Text], [IDL.Opt(User)], ['query']),
     'getUsersByPin' : IDL.Func([IDL.Text], [IDL.Vec(User)], ['query']),
+    'recordFeedConsumption' : IDL.Func(
+        [IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
+    'sendHeartbeat' : IDL.Func([IDL.Nat], [], []),
     'updateCow' : IDL.Func(
         [
           IDL.Nat,
@@ -374,6 +441,11 @@ export const idlFactory = ({ IDL }) => {
           IDL.Text,
           IDL.Text,
         ],
+        [],
+        [],
+      ),
+    'updateFeedStock' : IDL.Func(
+        [IDL.Text, IDL.Float64, IDL.Float64, IDL.Text],
         [],
         [],
       ),

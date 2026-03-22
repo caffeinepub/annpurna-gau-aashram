@@ -16,6 +16,7 @@ import {
   PawPrint,
   ScanLine,
   Shield,
+  Wheat,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -39,17 +40,24 @@ const allNavItems: {
   adminOnly?: boolean;
 }[] = [
   { id: "dashboard", icon: LayoutDashboard, en: "Dashboard", hi: "डैशबोर्ड" },
-  { id: "cows", icon: PawPrint, en: "Gau Parivar", hi: "गाय परिवार" },
-  { id: "health", icon: HeartPulse, en: "Swasthya", hi: "स्वास्थ्य" },
-  { id: "milk", icon: Milk, en: "Dudh", hi: "दूध प्रबंधन" },
-  { id: "vanshavali", icon: GitBranch, en: "Vanshavali", hi: "वंशावली" },
-  { id: "donations", icon: HandCoins, en: "Daan", hi: "दान" },
-  { id: "announcements", icon: Megaphone, en: "Ghoshna", hi: "घोषणा" },
+  { id: "cows", icon: PawPrint, en: "Cow Registry", hi: "गाय परिवार" },
+  { id: "health", icon: HeartPulse, en: "Health Records", hi: "स्वास्थ्य" },
+  { id: "milk", icon: Milk, en: "Milk Management", hi: "दूध प्रबंधन" },
+  { id: "feed", icon: Wheat, en: "Feed Management", hi: "चारा प्रबंधन" },
+  { id: "vanshavali", icon: GitBranch, en: "Offspring Records", hi: "वंशावली" },
+  { id: "donations", icon: HandCoins, en: "Donations", hi: "दान" },
+  { id: "announcements", icon: Megaphone, en: "Announcements", hi: "घोषणा" },
   { id: "scanner", icon: ScanLine, en: "QR Scanner", hi: "QR स्कैनर" },
   { id: "profile", icon: Building2, en: "Profile", hi: "प्रोफ़ाइल" },
   { id: "backup", icon: Archive, en: "Backup", hi: "बैकअप" },
-  { id: "changelog", icon: History, en: "Changes", hi: "बदलाव" },
-  { id: "admin", icon: Shield, en: "Admin", hi: "व्यवस्थापक", adminOnly: true },
+  { id: "changelog", icon: History, en: "Change Log", hi: "बदलाव" },
+  {
+    id: "admin",
+    icon: Shield,
+    en: "Admin Panel",
+    hi: "व्यवस्थापक",
+    adminOnly: true,
+  },
 ];
 
 const ocidMap: Record<Page, string> = {
@@ -57,6 +65,7 @@ const ocidMap: Record<Page, string> = {
   cows: "nav.cows.link",
   health: "nav.health.link",
   milk: "nav.milk.link",
+  feed: "nav.feed.link",
   donations: "nav.donations.link",
   announcements: "nav.announcements.link",
   scanner: "nav.scanner.link",

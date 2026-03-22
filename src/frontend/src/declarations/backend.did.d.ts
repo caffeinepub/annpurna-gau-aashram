@@ -57,6 +57,23 @@ export interface Donation {
   'amount' : number,
   'purpose' : string,
 }
+export interface FeedHistory {
+  'id' : bigint,
+  'action' : string,
+  'date' : Time,
+  'feedType' : string,
+  'recordedBy' : string,
+  'notes' : string,
+  'quantity' : number,
+}
+export interface FeedStock {
+  'id' : bigint,
+  'lastUpdated' : Time,
+  'feedType' : string,
+  'updatedBy' : string,
+  'totalStock' : number,
+  'dailyPerCow' : number,
+}
 export interface GaushaalaProfile {
   'descriptionHindi' : string,
   'nameHindi' : string,
@@ -109,6 +126,10 @@ export interface _SERVICE {
     bigint
   >,
   'addDonation' : ActorMethod<[string, number, string, string, string], bigint>,
+  'addFeedStockQuantity' : ActorMethod<
+    [string, number, string, string],
+    undefined
+  >,
   'addHealthRecord' : ActorMethod<
     [bigint, string, string, string, string],
     bigint
@@ -135,17 +156,26 @@ export interface _SERVICE {
   'getCow' : ActorMethod<[bigint], Cow>,
   'getCowByTag' : ActorMethod<[string], [] | [Cow]>,
   'getDonation' : ActorMethod<[bigint], Donation>,
+  'getFeedHistory' : ActorMethod<[], Array<FeedHistory>>,
+  'getFeedStocks' : ActorMethod<[], Array<FeedStock>>,
   'getHealthRecord' : ActorMethod<[bigint], HealthRecord>,
   'getHealthRecordsByCow' : ActorMethod<[bigint], Array<HealthRecord>>,
   'getMilkRecordsByDate' : ActorMethod<[string], Array<MilkRecord>>,
+  'getOnlineUsers' : ActorMethod<[], Array<bigint>>,
   'getProfile' : ActorMethod<[], GaushaalaProfile>,
   'getTodayMilkRecords' : ActorMethod<[], Array<MilkRecord>>,
   'getUserByPin' : ActorMethod<[string], [] | [User]>,
   'getUsersByPin' : ActorMethod<[string], Array<User>>,
+  'recordFeedConsumption' : ActorMethod<
+    [string, number, string, string],
+    undefined
+  >,
+  'sendHeartbeat' : ActorMethod<[bigint], undefined>,
   'updateCow' : ActorMethod<
     [bigint, string, string, bigint, string, string, string, string, string],
     undefined
   >,
+  'updateFeedStock' : ActorMethod<[string, number, number, string], undefined>,
   'updateProfile' : ActorMethod<
     [string, string, string, string, string, string, string, string],
     undefined

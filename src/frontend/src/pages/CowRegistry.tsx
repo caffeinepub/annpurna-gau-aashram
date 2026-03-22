@@ -70,7 +70,7 @@ interface CowRegistryProps {
   changedBy: string;
 }
 
-const getAgpId = (id: number | bigint) => `AGP${String(id).padStart(5, "0")}`;
+const getAgpId = (id: number | bigint) => `AGA${String(id).padStart(5, "0")}`;
 
 const DEFAULT_BREEDS = [
   { hi: "जर्सी", en: "Jersey" },

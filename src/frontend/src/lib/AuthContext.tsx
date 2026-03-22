@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { useActor } from "../hooks/useActor";
 
 export interface AuthUser {
   id: bigint;
@@ -36,6 +37,36 @@ function deserializeUser(raw: string): AuthUser | null {
   }
 }
 
+// Safe heartbeat call - only calls if the method exists on the actor
+function safeHeartbeat(actor: unknown, userId: bigint) {
+  try {
+    const fn = (actor as Record<string, unknown>).sendHeartbeat;
+    if (typeof fn === "function") {
+      (fn as (id: bigint) => Promise<void>).call(actor, userId).catch(() => {});
+    }
+  } catch {
+    // ignore
+  }
+}
+
+// Inner component that has access to useActor
+function HeartbeatSender({ userId }: { userId: bigint }) {
+  const { actor } = useActor();
+
+  useEffect(() => {
+    if (!actor) return;
+    // Send immediately on login
+    safeHeartbeat(actor, userId);
+    // Then every 60 seconds
+    const interval = setInterval(() => {
+      safeHeartbeat(actor, userId);
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [actor, userId]);
+
+  return null;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
     const raw = localStorage.getItem("gaushala_user");
@@ -67,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{ currentUser, login, logout, canEdit, isAdmin }}
     >
+      {currentUser && <HeartbeatSender userId={currentUser.id} />}
       {children}
     </AuthContext.Provider>
   );

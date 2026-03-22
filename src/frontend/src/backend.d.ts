@@ -32,6 +32,15 @@ export interface User {
     name: string;
     role: string;
 }
+export interface FeedHistory {
+    id: bigint;
+    action: string;
+    date: Time;
+    feedType: string;
+    recordedBy: string;
+    notes: string;
+    quantity: number;
+}
 export interface Cow {
     id: bigint;
     age: bigint;
@@ -53,15 +62,6 @@ export interface Calf {
     addedDate: Time;
     tagNumber: string;
 }
-export interface Announcement {
-    id: bigint;
-    contentHindi: string;
-    title: string;
-    content: string;
-    titleHindi: string;
-    date: Time;
-    isActive: boolean;
-}
 export interface HealthRecord {
     id: bigint;
     status: string;
@@ -69,6 +69,14 @@ export interface HealthRecord {
     cowId: bigint;
     vetName: string;
     notes: string;
+}
+export interface FeedStock {
+    id: bigint;
+    lastUpdated: Time;
+    feedType: string;
+    updatedBy: string;
+    totalStock: number;
+    dailyPerCow: number;
 }
 export interface ChangeLog {
     id: bigint;
@@ -88,12 +96,22 @@ export interface GaushaalaProfile {
     address: string;
     phone: string;
 }
+export interface Announcement {
+    id: bigint;
+    contentHindi: string;
+    title: string;
+    content: string;
+    titleHindi: string;
+    date: Time;
+    isActive: boolean;
+}
 export interface backendInterface {
     addAnnouncement(title: string, titleHindi: string, content: string, contentHindi: string, isActive: boolean, changedBy: string): Promise<bigint>;
     addCalf(cowId: bigint, birthMonth: bigint, birthYear: bigint, gender: string, tagNumber: string, notes: string, changedBy: string): Promise<bigint>;
     addChangeLog(userName: string, action: string, entity: string, entityName: string, details: string): Promise<void>;
     addCow(name: string, breed: string, age: bigint, healthStatus: string, description: string, tagNumber: string, qrCode: string, changedBy: string): Promise<bigint>;
     addDonation(donorName: string, amount: number, message: string, purpose: string, changedBy: string): Promise<bigint>;
+    addFeedStockQuantity(feedType: string, quantity: number, notes: string, recordedBy: string): Promise<void>;
     addHealthRecord(cowId: bigint, notes: string, status: string, vetName: string, changedBy: string): Promise<bigint>;
     addMilkRecord(cowId: bigint, cowName: string, date: string, morning: number, evening: number, changedBy: string): Promise<bigint>;
     changeUserPin(id: bigint, newPin: string, changedBy: string): Promise<void>;
@@ -114,13 +132,19 @@ export interface backendInterface {
     getCow(id: bigint): Promise<Cow>;
     getCowByTag(tag: string): Promise<Cow | null>;
     getDonation(id: bigint): Promise<Donation>;
+    getFeedHistory(): Promise<Array<FeedHistory>>;
+    getFeedStocks(): Promise<Array<FeedStock>>;
     getHealthRecord(id: bigint): Promise<HealthRecord>;
     getHealthRecordsByCow(cowId: bigint): Promise<Array<HealthRecord>>;
     getMilkRecordsByDate(date: string): Promise<Array<MilkRecord>>;
+    getOnlineUsers(): Promise<Array<bigint>>;
     getProfile(): Promise<GaushaalaProfile>;
     getTodayMilkRecords(): Promise<Array<MilkRecord>>;
     getUserByPin(pin: string): Promise<User | null>;
     getUsersByPin(pin: string): Promise<Array<User>>;
+    recordFeedConsumption(feedType: string, quantity: number, notes: string, recordedBy: string): Promise<void>;
+    sendHeartbeat(userId: bigint): Promise<void>;
     updateCow(id: bigint, name: string, breed: string, age: bigint, healthStatus: string, description: string, tagNumber: string, qrCode: string, changedBy: string): Promise<void>;
+    updateFeedStock(feedType: string, totalStock: number, dailyPerCow: number, updatedBy: string): Promise<void>;
     updateProfile(name: string, nameHindi: string, description: string, descriptionHindi: string, phone: string, address: string, logoBase64: string, changedBy: string): Promise<void>;
 }
