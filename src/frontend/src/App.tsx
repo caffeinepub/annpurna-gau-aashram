@@ -14,7 +14,9 @@ import Donations from "./pages/Donations";
 import HealthRecords from "./pages/HealthRecords";
 import LoginPage from "./pages/LoginPage";
 import MilkManagement from "./pages/MilkManagement";
+import Profile from "./pages/Profile";
 import QRScanner from "./pages/QRScanner";
+import VanshavaliPage from "./pages/VanshavaliPage";
 
 export type Page =
   | "dashboard"
@@ -26,7 +28,9 @@ export type Page =
   | "scanner"
   | "backup"
   | "changelog"
-  | "admin";
+  | "admin"
+  | "profile"
+  | "vanshavali";
 
 function AppContent() {
   const [page, setPage] = useState<Page>("dashboard");
@@ -80,6 +84,8 @@ function AppContent() {
       {page === "backup" && <Backup />}
       {page === "changelog" && <ChangeLogPage />}
       {page === "admin" && <AdminPage />}
+      {page === "profile" && <Profile />}
+      {page === "vanshavali" && <VanshavaliPage />}
     </Layout>
   );
 }

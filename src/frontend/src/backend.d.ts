@@ -79,6 +79,15 @@ export interface ChangeLog {
     details: string;
     entityName: string;
 }
+export interface GaushaalaProfile {
+    descriptionHindi: string;
+    nameHindi: string;
+    logoBase64: string;
+    name: string;
+    description: string;
+    address: string;
+    phone: string;
+}
 export interface backendInterface {
     addAnnouncement(title: string, titleHindi: string, content: string, contentHindi: string, isActive: boolean, changedBy: string): Promise<bigint>;
     addCalf(cowId: bigint, birthMonth: bigint, birthYear: bigint, gender: string, tagNumber: string, notes: string, changedBy: string): Promise<bigint>;
@@ -87,11 +96,13 @@ export interface backendInterface {
     addDonation(donorName: string, amount: number, message: string, purpose: string, changedBy: string): Promise<bigint>;
     addHealthRecord(cowId: bigint, notes: string, status: string, vetName: string, changedBy: string): Promise<bigint>;
     addMilkRecord(cowId: bigint, cowName: string, date: string, morning: number, evening: number, changedBy: string): Promise<bigint>;
+    changeUserPin(id: bigint, newPin: string, changedBy: string): Promise<void>;
     createUser(name: string, role: string, pin: string): Promise<bigint>;
     deleteCalf(id: bigint, changedBy: string): Promise<void>;
     deleteCow(id: bigint, changedBy: string): Promise<void>;
     deleteMilkRecord(id: bigint, changedBy: string): Promise<void>;
     deleteUser(id: bigint): Promise<void>;
+    ensureDefaultAdmin(): Promise<void>;
     getActiveAnnouncements(): Promise<Array<Announcement>>;
     getAllChangeLogs(): Promise<Array<ChangeLog>>;
     getAllCows(): Promise<Array<Cow>>;
@@ -106,8 +117,10 @@ export interface backendInterface {
     getHealthRecord(id: bigint): Promise<HealthRecord>;
     getHealthRecordsByCow(cowId: bigint): Promise<Array<HealthRecord>>;
     getMilkRecordsByDate(date: string): Promise<Array<MilkRecord>>;
+    getProfile(): Promise<GaushaalaProfile>;
     getTodayMilkRecords(): Promise<Array<MilkRecord>>;
     getUserByPin(pin: string): Promise<User | null>;
-    ensureDefaultAdmin(): Promise<void>;
+    getUsersByPin(pin: string): Promise<Array<User>>;
     updateCow(id: bigint, name: string, breed: string, age: bigint, healthStatus: string, description: string, tagNumber: string, qrCode: string, changedBy: string): Promise<void>;
+    updateProfile(name: string, nameHindi: string, description: string, descriptionHindi: string, phone: string, address: string, logoBase64: string, changedBy: string): Promise<void>;
 }

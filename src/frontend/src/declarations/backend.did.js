@@ -80,6 +80,15 @@ export const HealthRecord = IDL.Record({
   'vetName' : IDL.Text,
   'notes' : IDL.Text,
 });
+export const GaushaalaProfile = IDL.Record({
+  'descriptionHindi' : IDL.Text,
+  'nameHindi' : IDL.Text,
+  'logoBase64' : IDL.Text,
+  'name' : IDL.Text,
+  'description' : IDL.Text,
+  'address' : IDL.Text,
+  'phone' : IDL.Text,
+});
 
 export const idlService = IDL.Service({
   'addAnnouncement' : IDL.Func(
@@ -126,11 +135,13 @@ export const idlService = IDL.Service({
       [IDL.Nat],
       [],
     ),
+  'changeUserPin' : IDL.Func([IDL.Nat, IDL.Text, IDL.Text], [], []),
   'createUser' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
   'deleteCalf' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'deleteCow' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'deleteMilkRecord' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'deleteUser' : IDL.Func([IDL.Nat], [], []),
+  'ensureDefaultAdmin' : IDL.Func([], [], []),
   'getActiveAnnouncements' : IDL.Func([], [IDL.Vec(Announcement)], ['query']),
   'getAllChangeLogs' : IDL.Func([], [IDL.Vec(ChangeLog)], ['query']),
   'getAllCows' : IDL.Func([], [IDL.Vec(Cow)], ['query']),
@@ -153,15 +164,30 @@ export const idlService = IDL.Service({
       [IDL.Vec(MilkRecord)],
       ['query'],
     ),
+  'getProfile' : IDL.Func([], [GaushaalaProfile], ['query']),
   'getTodayMilkRecords' : IDL.Func([], [IDL.Vec(MilkRecord)], ['query']),
   'getUserByPin' : IDL.Func([IDL.Text], [IDL.Opt(User)], ['query']),
-  'ensureDefaultAdmin' : IDL.Func([], [], []),
+  'getUsersByPin' : IDL.Func([IDL.Text], [IDL.Vec(User)], ['query']),
   'updateCow' : IDL.Func(
       [
         IDL.Nat,
         IDL.Text,
         IDL.Text,
         IDL.Nat,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
+      ],
+      [],
+      [],
+    ),
+  'updateProfile' : IDL.Func(
+      [
+        IDL.Text,
+        IDL.Text,
+        IDL.Text,
         IDL.Text,
         IDL.Text,
         IDL.Text,
@@ -248,6 +274,15 @@ export const idlFactory = ({ IDL }) => {
     'vetName' : IDL.Text,
     'notes' : IDL.Text,
   });
+  const GaushaalaProfile = IDL.Record({
+    'descriptionHindi' : IDL.Text,
+    'nameHindi' : IDL.Text,
+    'logoBase64' : IDL.Text,
+    'name' : IDL.Text,
+    'description' : IDL.Text,
+    'address' : IDL.Text,
+    'phone' : IDL.Text,
+  });
   
   return IDL.Service({
     'addAnnouncement' : IDL.Func(
@@ -294,11 +329,13 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Nat],
         [],
       ),
+    'changeUserPin' : IDL.Func([IDL.Nat, IDL.Text, IDL.Text], [], []),
     'createUser' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Nat], []),
     'deleteCalf' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'deleteCow' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'deleteMilkRecord' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'deleteUser' : IDL.Func([IDL.Nat], [], []),
+    'ensureDefaultAdmin' : IDL.Func([], [], []),
     'getActiveAnnouncements' : IDL.Func([], [IDL.Vec(Announcement)], ['query']),
     'getAllChangeLogs' : IDL.Func([], [IDL.Vec(ChangeLog)], ['query']),
     'getAllCows' : IDL.Func([], [IDL.Vec(Cow)], ['query']),
@@ -321,15 +358,30 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Vec(MilkRecord)],
         ['query'],
       ),
+    'getProfile' : IDL.Func([], [GaushaalaProfile], ['query']),
     'getTodayMilkRecords' : IDL.Func([], [IDL.Vec(MilkRecord)], ['query']),
     'getUserByPin' : IDL.Func([IDL.Text], [IDL.Opt(User)], ['query']),
-  'ensureDefaultAdmin' : IDL.Func([], [], []),
+    'getUsersByPin' : IDL.Func([IDL.Text], [IDL.Vec(User)], ['query']),
     'updateCow' : IDL.Func(
         [
           IDL.Nat,
           IDL.Text,
           IDL.Text,
           IDL.Nat,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
+        ],
+        [],
+        [],
+      ),
+    'updateProfile' : IDL.Func(
+        [
+          IDL.Text,
+          IDL.Text,
+          IDL.Text,
           IDL.Text,
           IDL.Text,
           IDL.Text,

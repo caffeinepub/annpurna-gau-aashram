@@ -10,6 +10,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -20,12 +27,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Shield, Trash2, UserPlus, Users } from "lucide-react";
+import {
+  KeyRound,
+  Loader2,
+  Shield,
+  Trash2,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { User } from "../backend.d";
 import {
+  useChangeUserPin,
   useCreateUser,
   useDeleteUser,
   useGetAllUsers,
@@ -59,10 +74,16 @@ export default function AdminPage() {
   const { data: users = [], isLoading } = useGetAllUsers();
   const createUser = useCreateUser();
   const deleteUser = useDeleteUser();
+  const changeUserPin = useChangeUserPin();
 
   const [form, setForm] = useState(defaultForm);
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [pinError, setPinError] = useState("");
+
+  // Change PIN dialog state
+  const [changePinTarget, setChangePinTarget] = useState<User | null>(null);
+  const [newPin, setNewPin] = useState("");
+  const [newPinError, setNewPinError] = useState("");
 
   if (!isAdmin) {
     return (
@@ -78,6 +99,16 @@ export default function AdminPage() {
     if (form.pin.length !== 6 || !/^\d{6}$/.test(form.pin)) {
       setPinError(
         lang === "hi" ? "6 अंकों का PIN चाहिए" : "PIN must be 6 digits",
+      );
+      return;
+    }
+    // Check PIN uniqueness
+    const duplicate = users.find((u) => u.pin === form.pin);
+    if (duplicate) {
+      setPinError(
+        lang === "hi"
+          ? `यह PIN पहले से "${duplicate.name}" को दिया गया है`
+          : `This PIN is already assigned to "${duplicate.name}"`,
       );
       return;
     }
@@ -101,6 +132,54 @@ export default function AdminPage() {
       await deleteUser.mutateAsync(deleteTarget.id);
       toast.success(lang === "hi" ? "उपयोगकर्ता हटाया गया" : "User deleted");
       setDeleteTarget(null);
+    } catch {
+      toast.error(lang === "hi" ? "कुछ गलत हुआ" : "Error occurred");
+    }
+  }
+
+  function openChangePinDialog(user: User) {
+    setChangePinTarget(user);
+    setNewPin("");
+    setNewPinError("");
+  }
+
+  function closeChangePinDialog() {
+    setChangePinTarget(null);
+    setNewPin("");
+    setNewPinError("");
+  }
+
+  async function handleChangePin() {
+    if (!changePinTarget) return;
+    if (newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
+      setNewPinError(
+        lang === "hi" ? "6 अंकों का PIN चाहिए" : "PIN must be 6 digits",
+      );
+      return;
+    }
+    // Check PIN uniqueness (exclude the user whose PIN is being changed)
+    const duplicate = users.find(
+      (u) => u.pin === newPin && u.id !== changePinTarget.id,
+    );
+    if (duplicate) {
+      setNewPinError(
+        lang === "hi"
+          ? `यह PIN पहले से "${duplicate.name}" को दिया गया है`
+          : `This PIN is already assigned to "${duplicate.name}"`,
+      );
+      return;
+    }
+    setNewPinError("");
+    try {
+      await changeUserPin.mutateAsync({
+        id: changePinTarget.id,
+        newPin,
+        changedBy: currentUser?.name ?? "Admin",
+      });
+      toast.success(
+        lang === "hi" ? "PIN बदला गया" : "PIN changed successfully",
+      );
+      closeChangePinDialog();
     } catch {
       toast.error(lang === "hi" ? "कुछ गलत हुआ" : "Error occurred");
     }
@@ -252,6 +331,11 @@ export default function AdminPage() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground text-sm">
                     {user.name}
+                    {currentUser?.id === user.id && (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        ({lang === "hi" ? "आप" : "You"})
+                      </span>
+                    )}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     ID: {user.id.toString()}
@@ -263,6 +347,17 @@ export default function AdminPage() {
                 >
                   {roleLabel(user.role, lang)}
                 </Badge>
+                {/* Change PIN button -- available for all users including self */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  data-ocid={`admin.change_pin_button.${idx + 1}`}
+                  onClick={() => openChangePinDialog(user)}
+                  title={lang === "hi" ? "PIN बदलें" : "Change PIN"}
+                  className="text-muted-foreground hover:text-primary hover:bg-primary/10 flex-shrink-0"
+                >
+                  <KeyRound className="h-4 w-4" />
+                </Button>
                 {currentUser?.id !== user.id && (
                   <Button
                     variant="ghost"
@@ -310,6 +405,90 @@ export default function AdminPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Change PIN Dialog */}
+      <Dialog
+        open={!!changePinTarget}
+        onOpenChange={(o) => !o && closeChangePinDialog()}
+      >
+        <DialogContent
+          data-ocid="admin.change_pin.dialog"
+          className="sm:max-w-md"
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-primary" />
+              {lang === "hi" ? "PIN बदलें" : "Change PIN"}
+              {changePinTarget && (
+                <span className="font-normal text-muted-foreground text-base ml-1">
+                  — {changePinTarget.name}
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="new-pin">
+                {lang === "hi" ? "नया 6 अंक PIN" : "New 6-digit PIN"} *
+              </Label>
+              <Input
+                id="new-pin"
+                data-ocid="admin.change_pin.input"
+                type="password"
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="••••••"
+                value={newPin}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                  setNewPin(val);
+                  setNewPinError("");
+                }}
+                autoFocus
+              />
+              {newPinError && (
+                <p
+                  className="text-xs text-destructive"
+                  data-ocid="admin.change_pin.error_state"
+                >
+                  {newPinError}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              data-ocid="admin.change_pin.cancel_button"
+              onClick={closeChangePinDialog}
+              disabled={changeUserPin.isPending}
+            >
+              {lang === "hi" ? "रद्द करें" : "Cancel"}
+            </Button>
+            <Button
+              data-ocid="admin.change_pin.save_button"
+              onClick={handleChangePin}
+              disabled={changeUserPin.isPending}
+              className="gap-2"
+            >
+              {changeUserPin.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <KeyRound className="h-4 w-4" />
+              )}
+              {changeUserPin.isPending
+                ? lang === "hi"
+                  ? "सहेज रहे हैं..."
+                  : "Saving..."
+                : lang === "hi"
+                  ? "सहेजें"
+                  : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

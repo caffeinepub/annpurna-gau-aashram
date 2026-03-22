@@ -1,13 +1,14 @@
-import Map "mo:core/Map";
-import Iter "mo:core/Iter";
-import Nat "mo:core/Nat";
-import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
+import Runtime "mo:core/Runtime";
+
 import Float "mo:core/Float";
-import Array "mo:core/Array";
 import Text "mo:core/Text";
 import Order "mo:core/Order";
 import Int "mo:core/Int";
+import Map "mo:core/Map";
+import Nat "mo:core/Nat";
+import Array "mo:core/Array";
+import Iter "mo:core/Iter";
 
 
 
@@ -91,6 +92,16 @@ actor {
     changedBy : Text;
   };
 
+  type GaushaalaProfile = {
+    name : Text;
+    nameHindi : Text;
+    description : Text;
+    descriptionHindi : Text;
+    phone : Text;
+    address : Text;
+    logoBase64 : Text;
+  };
+
   let cows = Map.empty<Nat, Cow>();
   let calves = Map.empty<Nat, Calf>();
   let donations = Map.empty<Nat, Donation>();
@@ -105,16 +116,32 @@ actor {
   var donationIdCounter = 1;
   var healthRecordIdCounter = 1;
   var announcementIdCounter = 1;
-  var userIdCounter = 1;
+  var userIdCounter = 2;
   var changeLogIdCounter = 1;
   var milkRecordIdCounter = 1;
+
+  var defaultAdminCreated = false; // kept for upgrade compatibility
+  var gaushaalaProfile : GaushaalaProfile = {
+    name = "Annpurna Gau Aashram";
+    nameHindi = "अन्नपूर्णा गौ आश्रम";
+    description = "A shelter dedicated to the care and protection of animals.";
+    descriptionHindi = "जानवरों की देखभाल और सुरक्षा के लिए समर्पित एक गौशाला।";
+    phone = "";
+    address = "";
+    logoBase64 = "";
+  };
 
   func compareByDate(a : MilkRecord, b : MilkRecord) : Order.Order {
     Int.compare(a.addedDate, b.addedDate);
   };
 
-  // Private helper to insert a change log entry without self-call
-  func recordLog(userName : Text, action : Text, entity : Text, entityName : Text, details : Text) {
+  func recordLog(
+    userName : Text,
+    action : Text,
+    entity : Text,
+    entityName : Text,
+    details : Text,
+  ) {
     let id = changeLogIdCounter;
     changeLogIdCounter += 1;
     let log : ChangeLog = {
@@ -129,7 +156,32 @@ actor {
     changeLogs.add(id, log);
   };
 
-  // User Management
+  public query ({ caller }) func getProfile() : async GaushaalaProfile {
+    gaushaalaProfile;
+  };
+
+  public shared ({ caller }) func updateProfile(
+    name : Text,
+    nameHindi : Text,
+    description : Text,
+    descriptionHindi : Text,
+    phone : Text,
+    address : Text,
+    logoBase64 : Text,
+    changedBy : Text,
+  ) : async () {
+    gaushaalaProfile := {
+      name;
+      nameHindi;
+      description;
+      descriptionHindi;
+      phone;
+      address;
+      logoBase64;
+    };
+    recordLog(changedBy, "edit", "profile", name, "Updated gaushala profile");
+  };
+
   public shared ({ caller }) func createUser(name : Text, role : Text, pin : Text) : async Nat {
     let id = userIdCounter;
     userIdCounter += 1;
@@ -150,37 +202,72 @@ actor {
     users.remove(id);
   };
 
+  public shared ({ caller }) func changeUserPin(id : Nat, newPin : Text, changedBy : Text) : async () {
+    switch (users.get(id)) {
+      case (null) { Runtime.trap("User not found") };
+      case (?existingUser) {
+        let updatedUser : User = {
+          id = existingUser.id;
+          name = existingUser.name;
+          role = existingUser.role;
+          pin = newPin;
+        };
+        users.add(id, updatedUser);
+        recordLog(
+          changedBy,
+          "edit",
+          "user",
+          existingUser.name,
+          "PIN changed for user: " # existingUser.name,
+        );
+      };
+    };
+  };
+
   public query ({ caller }) func getAllUsers() : async [User] {
     users.values().toArray();
   };
 
   public query ({ caller }) func getUserByPin(pin : Text) : async ?User {
     let iter = users.values();
-    iter.find(
-      func(user) {
-        user.pin == pin;
-      }
-    );
+    iter.find(func(user) { user.pin == pin });
   };
 
-  // Returns ALL users with a given PIN (to handle duplicate PINs)
   public query ({ caller }) func getUsersByPin(pin : Text) : async [User] {
     let iter = users.values();
     iter.filter(func(user) { user.pin == pin }).toArray();
   };
 
-  // Initialize default admin if no users exist
+  // Ensures a default admin exists. Uses add (upsert) so it never traps,
+  // and checks by role so it does not overwrite a renamed/repinned admin.
   public shared ({ caller }) func ensureDefaultAdmin() : async () {
-    if (users.size() == 0) {
-      let id = userIdCounter;
-      userIdCounter += 1;
-      let admin : User = { id; name = "Admin"; role = "admin"; pin = "000000" };
-      users.add(id, admin);
+    let adminExists = users.values().find(func(u : User) : Bool {
+      u.role == "admin";
+    });
+    switch (adminExists) {
+      case (null) {
+        // No admin found — create default admin with PIN 000000
+        let defaultAdmin : User = {
+          id = 1;
+          name = "Admin";
+          role = "admin";
+          pin = "000000";
+        };
+        users.add(1, defaultAdmin);
+      };
+      case (?_) {
+        // Admin already exists — nothing to do
+      };
     };
   };
 
-  // Change Log (public endpoint for direct frontend calls)
-  public shared ({ caller }) func addChangeLog(userName : Text, action : Text, entity : Text, entityName : Text, details : Text) : async () {
+  public shared ({ caller }) func addChangeLog(
+    userName : Text,
+    action : Text,
+    entity : Text,
+    entityName : Text,
+    details : Text,
+  ) : async () {
     recordLog(userName, action, entity, entityName, details);
   };
 
@@ -188,7 +275,6 @@ actor {
     changeLogs.values().toArray();
   };
 
-  // Cow CRUD
   public shared ({ caller }) func addCow(
     name : Text,
     breed : Text,
@@ -264,20 +350,24 @@ actor {
       Runtime.trap("Cow with id " # id.toText() # " not found");
     };
     cows.remove(id);
-    recordLog(changedBy, "delete", "cow", id.toText(), "Deleted cow id: " # id.toText());
+    recordLog(
+      changedBy,
+      "delete",
+      "cow",
+      id.toText(),
+      "Deleted cow id: " # id.toText(),
+    );
   };
 
   public query ({ caller }) func getCowByTag(tag : Text) : async ?Cow {
-    if (tag == "") { return null };
     let iter = cows.values();
     iter.find(
       func(cow) {
-        (cow.tagNumber != "" and cow.tagNumber == tag) or (cow.qrCode != "" and cow.qrCode == tag);
+        cow.tagNumber == tag or cow.qrCode == tag;
       }
     );
   };
 
-  // Calf CRUD
   public shared ({ caller }) func addCalf(
     cowId : Nat,
     birthMonth : Nat,
@@ -303,7 +393,13 @@ actor {
           addedDate = Time.now();
         };
         calves.add(id, calf);
-        recordLog(changedBy, "add", "calf", "Calf for cow " # cowId.toText(), "Added calf");
+        recordLog(
+          changedBy,
+          "add",
+          "calf",
+          "Calf for cow " # cowId.toText(),
+          "Added calf",
+        );
         id;
       };
     };
@@ -319,11 +415,22 @@ actor {
       Runtime.trap("Calf with id " # id.toText() # " not found");
     };
     calves.remove(id);
-    recordLog(changedBy, "delete", "calf", id.toText(), "Deleted calf id: " # id.toText());
+    recordLog(
+      changedBy,
+      "delete",
+      "calf",
+      id.toText(),
+      "Deleted calf id: " # id.toText(),
+    );
   };
 
-  // Donation CRUD
-  public shared ({ caller }) func addDonation(donorName : Text, amount : Float, message : Text, purpose : Text, changedBy : Text) : async Nat {
+  public shared ({ caller }) func addDonation(
+    donorName : Text,
+    amount : Float,
+    message : Text,
+    purpose : Text,
+    changedBy : Text,
+  ) : async Nat {
     let id = donationIdCounter;
     donationIdCounter += 1;
     let donation : Donation = {
@@ -335,7 +442,13 @@ actor {
       purpose;
     };
     donations.add(id, donation);
-    recordLog(changedBy, "add", "donation", donorName, "Donation by: " # donorName);
+    recordLog(
+      changedBy,
+      "add",
+      "donation",
+      donorName,
+      "Donation by: " # donorName,
+    );
     id;
   };
 
@@ -350,8 +463,13 @@ actor {
     donations.values().toArray();
   };
 
-  // HealthRecord CRUD
-  public shared ({ caller }) func addHealthRecord(cowId : Nat, notes : Text, status : Text, vetName : Text, changedBy : Text) : async Nat {
+  public shared ({ caller }) func addHealthRecord(
+    cowId : Nat,
+    notes : Text,
+    status : Text,
+    vetName : Text,
+    changedBy : Text,
+  ) : async Nat {
     if (not cows.containsKey(cowId)) {
       Runtime.trap("Cow not found");
     };
@@ -366,7 +484,13 @@ actor {
       vetName;
     };
     healthRecords.add(id, record);
-    recordLog(changedBy, "add", "health", "Cow " # cowId.toText(), "Added health record");
+    recordLog(
+      changedBy,
+      "add",
+      "health",
+      "Cow " # cowId.toText(),
+      "Added health record",
+    );
     id;
   };
 
@@ -382,8 +506,14 @@ actor {
     iter.filter(func(record) { record.cowId == cowId }).toArray();
   };
 
-  // Announcement CRUD
-  public shared ({ caller }) func addAnnouncement(title : Text, titleHindi : Text, content : Text, contentHindi : Text, isActive : Bool, changedBy : Text) : async Nat {
+  public shared ({ caller }) func addAnnouncement(
+    title : Text,
+    titleHindi : Text,
+    content : Text,
+    contentHindi : Text,
+    isActive : Bool,
+    changedBy : Text,
+  ) : async Nat {
     let id = announcementIdCounter;
     announcementIdCounter += 1;
     let announcement : Announcement = {
@@ -412,7 +542,6 @@ actor {
     iter.filter(func(a) { a.isActive }).toArray();
   };
 
-  // Milk Management
   public shared ({ caller }) func addMilkRecord(
     cowId : Nat,
     cowName : Text,
@@ -434,7 +563,13 @@ actor {
       changedBy;
     };
     milkRecords.add(id, record);
-    recordLog(changedBy, "add", "milk", cowName, "Added milk record for " # cowName);
+    recordLog(
+      changedBy,
+      "add",
+      "milk",
+      cowName,
+      "Added milk record for " # cowName,
+    );
     id;
   };
 
@@ -452,7 +587,13 @@ actor {
       Runtime.trap("Milk record not found");
     };
     milkRecords.remove(id);
-    recordLog(changedBy, "delete", "milk", id.toText(), "Deleted milk record");
+    recordLog(
+      changedBy,
+      "delete",
+      "milk",
+      id.toText(),
+      "Deleted milk record",
+    );
   };
 
   public query ({ caller }) func getTodayMilkRecords() : async [MilkRecord] {

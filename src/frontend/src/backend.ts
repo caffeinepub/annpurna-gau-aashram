@@ -161,6 +161,15 @@ export interface ChangeLog {
     details: string;
     entityName: string;
 }
+export interface GaushaalaProfile {
+    descriptionHindi: string;
+    nameHindi: string;
+    logoBase64: string;
+    name: string;
+    description: string;
+    address: string;
+    phone: string;
+}
 export interface backendInterface {
     addAnnouncement(title: string, titleHindi: string, content: string, contentHindi: string, isActive: boolean, changedBy: string): Promise<bigint>;
     addCalf(cowId: bigint, birthMonth: bigint, birthYear: bigint, gender: string, tagNumber: string, notes: string, changedBy: string): Promise<bigint>;
@@ -169,11 +178,13 @@ export interface backendInterface {
     addDonation(donorName: string, amount: number, message: string, purpose: string, changedBy: string): Promise<bigint>;
     addHealthRecord(cowId: bigint, notes: string, status: string, vetName: string, changedBy: string): Promise<bigint>;
     addMilkRecord(cowId: bigint, cowName: string, date: string, morning: number, evening: number, changedBy: string): Promise<bigint>;
+    changeUserPin(id: bigint, newPin: string, changedBy: string): Promise<void>;
     createUser(name: string, role: string, pin: string): Promise<bigint>;
     deleteCalf(id: bigint, changedBy: string): Promise<void>;
     deleteCow(id: bigint, changedBy: string): Promise<void>;
     deleteMilkRecord(id: bigint, changedBy: string): Promise<void>;
     deleteUser(id: bigint): Promise<void>;
+    ensureDefaultAdmin(): Promise<void>;
     getActiveAnnouncements(): Promise<Array<Announcement>>;
     getAllChangeLogs(): Promise<Array<ChangeLog>>;
     getAllCows(): Promise<Array<Cow>>;
@@ -188,10 +199,12 @@ export interface backendInterface {
     getHealthRecord(id: bigint): Promise<HealthRecord>;
     getHealthRecordsByCow(cowId: bigint): Promise<Array<HealthRecord>>;
     getMilkRecordsByDate(date: string): Promise<Array<MilkRecord>>;
+    getProfile(): Promise<GaushaalaProfile>;
     getTodayMilkRecords(): Promise<Array<MilkRecord>>;
     getUserByPin(pin: string): Promise<User | null>;
-    ensureDefaultAdmin(): Promise<void>;
+    getUsersByPin(pin: string): Promise<Array<User>>;
     updateCow(id: bigint, name: string, breed: string, age: bigint, healthStatus: string, description: string, tagNumber: string, qrCode: string, changedBy: string): Promise<void>;
+    updateProfile(name: string, nameHindi: string, description: string, descriptionHindi: string, phone: string, address: string, logoBase64: string, changedBy: string): Promise<void>;
 }
 import type { Cow as _Cow, User as _User } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
@@ -294,6 +307,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async changeUserPin(arg0: bigint, arg1: string, arg2: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.changeUserPin(arg0, arg1, arg2);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.changeUserPin(arg0, arg1, arg2);
+            return result;
+        }
+    }
     async createUser(arg0: string, arg1: string, arg2: string): Promise<bigint> {
         if (this.processError) {
             try {
@@ -361,6 +388,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteUser(arg0);
+            return result;
+        }
+    }
+    async ensureDefaultAdmin(): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.ensureDefaultAdmin();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.ensureDefaultAdmin();
             return result;
         }
     }
@@ -560,6 +601,20 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getProfile(): Promise<GaushaalaProfile> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getProfile();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getProfile();
+            return result;
+        }
+    }
     async getTodayMilkRecords(): Promise<Array<MilkRecord>> {
         if (this.processError) {
             try {
@@ -588,16 +643,18 @@ export class Backend implements backendInterface {
             return from_candid_opt_n2(this._uploadFile, this._downloadFile, result);
         }
     }
-    async ensureDefaultAdmin(): Promise<void> {
+    async getUsersByPin(arg0: string): Promise<Array<User>> {
         if (this.processError) {
             try {
-                await this.actor.ensureDefaultAdmin();
+                const result = await this.actor.getUsersByPin(arg0);
+                return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            await this.actor.ensureDefaultAdmin();
+            const result = await this.actor.getUsersByPin(arg0);
+            return result;
         }
     }
     async updateCow(arg0: bigint, arg1: string, arg2: string, arg3: bigint, arg4: string, arg5: string, arg6: string, arg7: string, arg8: string): Promise<void> {
@@ -611,6 +668,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.updateCow(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
+            return result;
+        }
+    }
+    async updateProfile(arg0: string, arg1: string, arg2: string, arg3: string, arg4: string, arg5: string, arg6: string, arg7: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateProfile(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateProfile(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
             return result;
         }
     }

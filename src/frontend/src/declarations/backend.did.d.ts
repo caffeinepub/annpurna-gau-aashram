@@ -57,6 +57,15 @@ export interface Donation {
   'amount' : number,
   'purpose' : string,
 }
+export interface GaushaalaProfile {
+  'descriptionHindi' : string,
+  'nameHindi' : string,
+  'logoBase64' : string,
+  'name' : string,
+  'description' : string,
+  'address' : string,
+  'phone' : string,
+}
 export interface HealthRecord {
   'id' : bigint,
   'status' : string,
@@ -108,11 +117,13 @@ export interface _SERVICE {
     [bigint, string, string, number, number, string],
     bigint
   >,
+  'changeUserPin' : ActorMethod<[bigint, string, string], undefined>,
   'createUser' : ActorMethod<[string, string, string], bigint>,
   'deleteCalf' : ActorMethod<[bigint, string], undefined>,
   'deleteCow' : ActorMethod<[bigint, string], undefined>,
   'deleteMilkRecord' : ActorMethod<[bigint, string], undefined>,
   'deleteUser' : ActorMethod<[bigint], undefined>,
+  'ensureDefaultAdmin' : ActorMethod<[], undefined>,
   'getActiveAnnouncements' : ActorMethod<[], Array<Announcement>>,
   'getAllChangeLogs' : ActorMethod<[], Array<ChangeLog>>,
   'getAllCows' : ActorMethod<[], Array<Cow>>,
@@ -127,11 +138,16 @@ export interface _SERVICE {
   'getHealthRecord' : ActorMethod<[bigint], HealthRecord>,
   'getHealthRecordsByCow' : ActorMethod<[bigint], Array<HealthRecord>>,
   'getMilkRecordsByDate' : ActorMethod<[string], Array<MilkRecord>>,
+  'getProfile' : ActorMethod<[], GaushaalaProfile>,
   'getTodayMilkRecords' : ActorMethod<[], Array<MilkRecord>>,
   'getUserByPin' : ActorMethod<[string], [] | [User]>,
-  'ensureDefaultAdmin' : ActorMethod<[], undefined>,
+  'getUsersByPin' : ActorMethod<[string], Array<User>>,
   'updateCow' : ActorMethod<
     [bigint, string, string, bigint, string, string, string, string, string],
+    undefined
+  >,
+  'updateProfile' : ActorMethod<
+    [string, string, string, string, string, string, string, string],
     undefined
   >,
 }

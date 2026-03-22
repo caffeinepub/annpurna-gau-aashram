@@ -18,6 +18,11 @@ import type { Cow } from "../backend.d";
 import { useGetAllCows } from "../hooks/useQueries";
 import { useLang } from "../lib/LanguageContext";
 
+// ── AGP ID helper ─────────────────────────────────────────────────────
+function getAgpId(cow: Cow): string {
+  return `AGP${String(cow.id).padStart(5, "0")}`;
+}
+
 // ── localStorage helpers ──────────────────────────────────────────────
 interface MilkEntry {
   morning: number;
@@ -61,6 +66,7 @@ export default function MilkManagement() {
 
   const [selectedDate, setSelectedDate] = useState<string>(todayKey());
   const [sheetOpen, setSheetOpen] = useState(false);
+  // savedRows: persists until date changes (no auto-clear)
   const [savedRows, setSavedRows] = useState<Set<string>>(new Set());
 
   // Only show Lactating cows
@@ -89,6 +95,12 @@ export default function MilkManagement() {
 
   function setMorning(cow: Cow, val: string) {
     const id = cow.id.toString();
+    // Reset saved state when user edits
+    setSavedRows((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     setInlineValues((prev) => ({
       ...prev,
       [id]: { morning: val, evening: prev[id]?.evening ?? getEvening(cow) },
@@ -96,6 +108,12 @@ export default function MilkManagement() {
   }
   function setEvening(cow: Cow, val: string) {
     const id = cow.id.toString();
+    // Reset saved state when user edits
+    setSavedRows((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     setInlineValues((prev) => ({
       ...prev,
       [id]: { morning: prev[id]?.morning ?? getMorning(cow), evening: val },
@@ -107,18 +125,8 @@ export default function MilkManagement() {
     const morning = Number.parseFloat(getMorning(cow)) || 0;
     const evening = Number.parseFloat(getEvening(cow)) || 0;
     storeMilk(id, selectedDate, { morning, evening });
-    toast.success(
-      lang === "hi" ? `${cow.name} का दूध सहेजा गया` : `${cow.name} milk saved`,
-    );
-    // Show "सहेजा गया ✓" feedback for 2 seconds
+    // Mark as saved permanently (no timeout - stays until date changes)
     setSavedRows((prev) => new Set(prev).add(id));
-    setTimeout(() => {
-      setSavedRows((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }, 2000);
   }
 
   // ── Totals ─────────────────────────────────────────────────────────
@@ -163,6 +171,7 @@ export default function MilkManagement() {
       const morning = Number.parseFloat(bulkValues[id]?.morning ?? "") || 0;
       const evening = Number.parseFloat(bulkValues[id]?.evening ?? "") || 0;
       storeMilk(id, selectedDate, { morning, evening });
+      setSavedRows((prev) => new Set(prev).add(id));
     }
     // Flush inline edits to show new saved values
     setInlineValues({});
@@ -217,6 +226,7 @@ export default function MilkManagement() {
           onChange={(e) => {
             setSelectedDate(e.target.value);
             setInlineValues({});
+            setSavedRows(new Set()); // reset saved state when date changes
           }}
           className="flex-1 bg-transparent text-sm font-medium text-foreground border-none outline-none cursor-pointer"
           max={todayKey()}
@@ -330,8 +340,6 @@ export default function MilkManagement() {
                 const rowTotal =
                   (Number.parseFloat(morning) || 0) +
                   (Number.parseFloat(evening) || 0);
-                const stored = getStoredMilk(cow.id.toString(), selectedDate);
-                const hasStoredData = stored.morning > 0 || stored.evening > 0;
                 const isSaved = savedRows.has(cow.id.toString());
                 return (
                   <motion.tr
@@ -353,12 +361,9 @@ export default function MilkManagement() {
                           <p className="font-semibold text-foreground">
                             {cow.name}
                           </p>
-                          {hasStoredData &&
-                            !inlineValues[cow.id.toString()] && (
-                              <p className="text-[10px] text-green-600 font-medium">
-                                {lang === "hi" ? "✓ सहेजा गया" : "✓ Saved"}
-                              </p>
-                            )}
+                          <p className="text-[10px] text-green-700 font-mono font-medium">
+                            {getAgpId(cow)}
+                          </p>
                         </div>
                       </div>
                     </td>
@@ -405,7 +410,7 @@ export default function MilkManagement() {
                         className={cn(
                           "h-8 text-xs px-3 transition-all duration-200",
                           isSaved
-                            ? "text-green-700 border-green-400 bg-green-50 hover:bg-green-50"
+                            ? "text-green-700 border-green-400 bg-green-50 hover:bg-green-50 cursor-default"
                             : "text-primary border-primary/30 hover:bg-primary/10",
                         )}
                         onClick={() => saveInline(cow)}
@@ -483,9 +488,14 @@ export default function MilkManagement() {
                         {cow.name.charAt(0).toUpperCase()}
                       </span>
                     </div>
-                    <p className="font-semibold text-foreground text-sm">
-                      {cow.name}
-                    </p>
+                    <div>
+                      <p className="font-semibold text-foreground text-sm">
+                        {cow.name}
+                      </p>
+                      <p className="text-[10px] text-green-700 font-mono font-medium">
+                        {getAgpId(cow)}
+                      </p>
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">

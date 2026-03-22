@@ -281,15 +281,6 @@ export default function LoginPage() {
                 </p>
               )}
 
-              {/* Default PIN hint */}
-              {isReady && (
-                <p className="text-center text-xs text-amber-600 mb-4 bg-amber-50 rounded-lg px-3 py-2">
-                  {lang === "hi"
-                    ? "डिफ़ॉल्ट Admin PIN: 000000"
-                    : "Default Admin PIN: 000000"}
-                </p>
-              )}
-
               {/* Number Pad */}
               <div className="grid grid-cols-3 gap-3">
                 {digitRows.flat().map((d, rowIdx) => {

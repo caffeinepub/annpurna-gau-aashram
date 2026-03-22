@@ -51,8 +51,8 @@ export function useAddCow() {
       );
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["cows"] });
-      qc.invalidateQueries({ queryKey: ["changelogs"] });
+      qc.invalidateQueries({ queryKey: ["cows"] }).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["changelogs"] }).catch(() => {});
     },
   });
 }
@@ -86,8 +86,8 @@ export function useUpdateCow() {
       );
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["cows"] });
-      qc.invalidateQueries({ queryKey: ["changelogs"] });
+      qc.invalidateQueries({ queryKey: ["cows"] }).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["changelogs"] }).catch(() => {});
     },
   });
 }
@@ -101,9 +101,9 @@ export function useDeleteCow() {
       return actor.deleteCow(data.id, data.changedBy);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["cows"] });
-      qc.invalidateQueries({ queryKey: ["health"] });
-      qc.invalidateQueries({ queryKey: ["changelogs"] });
+      qc.invalidateQueries({ queryKey: ["cows"] }).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["health"] }).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["changelogs"] }).catch(() => {});
     },
   });
 }
@@ -143,8 +143,8 @@ export function useAddDonation() {
       );
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["donations"] });
-      qc.invalidateQueries({ queryKey: ["changelogs"] });
+      qc.invalidateQueries({ queryKey: ["donations"] }).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["changelogs"] }).catch(() => {});
     },
   });
 }
@@ -169,11 +169,17 @@ export function useGetAllHealthRecords() {
     queryKey: ["health", "all"],
     queryFn: async () => {
       if (!actor) return [];
-      const cows = await actor.getAllCows();
-      const results = await Promise.all(
-        cows.map((c) => actor.getHealthRecordsByCow(c.id)),
-      );
-      return results.flat();
+      try {
+        const cows = await actor.getAllCows();
+        const results = await Promise.all(
+          cows.map((c) =>
+            actor.getHealthRecordsByCow(c.id).catch(() => [] as HealthRecord[]),
+          ),
+        );
+        return results.flat();
+      } catch {
+        return [];
+      }
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 30000,
@@ -201,8 +207,13 @@ export function useAddHealthRecord() {
       );
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["health"] });
-      qc.invalidateQueries({ queryKey: ["changelogs"] });
+      // Use catch to prevent invalidation errors from propagating to mutateAsync
+      qc.invalidateQueries({ queryKey: ["health"] }).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["changelogs"] }).catch(() => {});
+    },
+    onError: () => {
+      // Still try to refresh data even on error, silently
+      qc.invalidateQueries({ queryKey: ["health"] }).catch(() => {});
     },
   });
 }
@@ -244,8 +255,8 @@ export function useAddAnnouncement() {
       );
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["announcements"] });
-      qc.invalidateQueries({ queryKey: ["changelogs"] });
+      qc.invalidateQueries({ queryKey: ["announcements"] }).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["changelogs"] }).catch(() => {});
     },
   });
 }
@@ -291,8 +302,8 @@ export function useAddCalf() {
     onSuccess: (_data, variables) => {
       qc.invalidateQueries({
         queryKey: ["calves", variables.cowId.toString()],
-      });
-      qc.invalidateQueries({ queryKey: ["changelogs"] });
+      }).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["changelogs"] }).catch(() => {});
     },
   });
 }
@@ -306,8 +317,8 @@ export function useDeleteCalf() {
       return actor.deleteCalf(data.id, data.changedBy);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["calves"] });
-      qc.invalidateQueries({ queryKey: ["changelogs"] });
+      qc.invalidateQueries({ queryKey: ["calves"] }).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["changelogs"] }).catch(() => {});
     },
   });
 }
@@ -322,6 +333,19 @@ export function useGetCowByTag() {
   });
 }
 
+export function useGetCowById() {
+  const { actor } = useActor();
+  return useMutation({
+    mutationFn: async (id: bigint): Promise<Cow | null> => {
+      if (!actor) throw new Error("No actor");
+      try {
+        return await actor.getCow(id);
+      } catch {
+        return null;
+      }
+    },
+  });
+}
 // ── Users ───────────────────────────────────────────────────────────────────
 export function useGetAllUsers() {
   const { actor, isFetching } = useActor();
@@ -344,7 +368,8 @@ export function useCreateUser() {
       if (!actor) throw new Error("No actor");
       return actor.createUser(data.name, data.role, data.pin);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["users"] }).catch(() => {}),
   });
 }
 
@@ -356,7 +381,25 @@ export function useDeleteUser() {
       if (!actor) throw new Error("No actor");
       return actor.deleteUser(id);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["users"] }).catch(() => {}),
+  });
+}
+
+export function useChangeUserPin() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      id: bigint;
+      newPin: string;
+      changedBy: string;
+    }) => {
+      if (!actor) throw new Error("No actor");
+      return (actor as any).changeUserPin(data.id, data.newPin, data.changedBy);
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["users"] }).catch(() => {}),
   });
 }
 

@@ -70,6 +70,42 @@ interface CowRegistryProps {
   changedBy: string;
 }
 
+const getAgpId = (id: number | bigint) => `AGP${String(id).padStart(5, "0")}`;
+
+const DEFAULT_BREEDS = [
+  { hi: "जर्सी", en: "Jersey" },
+  { hi: "होलस्टीन फ्रिजियन", en: "Holstein Friesian (HF)" },
+  { hi: "गिर", en: "Gir" },
+  { hi: "साहिवाल", en: "Sahiwal" },
+  { hi: "लाल सिंधी", en: "Red Sindhi" },
+  { hi: "थारपारकर", en: "Tharparkar" },
+  { hi: "राठी", en: "Rathi" },
+  { hi: "हरियाणा", en: "Hariana" },
+  { hi: "कांकरेज", en: "Kankrej" },
+  { hi: "देवनी", en: "Deoni" },
+  { hi: "ओंगोल", en: "Ongole" },
+  { hi: "कृष्णा वैली", en: "Krishna Valley" },
+  { hi: "मेवाती", en: "Mewati" },
+  { hi: "निम्बारी", en: "Nimari" },
+  { hi: "डांगी", en: "Dangi" },
+  { hi: "गावलाओ", en: "Gaolao" },
+  { hi: "लाल कंधारी", en: "Red Kandhari" },
+  { hi: "पुंगनूर", en: "Punganur" },
+  { hi: "वेचुर", en: "Vechur" },
+  { hi: "नागौरी", en: "Nagori" },
+  { hi: "मालवी", en: "Malvi" },
+  { hi: "हल्लीकर", en: "Hallikar" },
+  { hi: "अमृतमहल", en: "Amritmahal" },
+  { hi: "खिल्लारी", en: "Khillari" },
+  { hi: "कंगायम", en: "Kangayam" },
+  { hi: "बरगुर", en: "Bargur" },
+  { hi: "उम्बलाचेरी", en: "Umblachery" },
+  { hi: "केनकथा", en: "Ken katha" },
+  { hi: "खेरीगढ़", en: "Kherigarh" },
+  { hi: "ब्राउन स्विस (क्रॉस)", en: "Brown Swiss (Cross)" },
+];
+const CUSTOM_BREEDS_KEY = "customBreeds";
+
 const defaultForm = {
   name: "",
   breed: "",
@@ -259,6 +295,14 @@ export default function CowRegistry({
   const [editCow, setEditCow] = useState<Cow | null>(null);
   const [deleteId, setDeleteId] = useState<bigint | null>(null);
   const [form, setForm] = useState(defaultForm);
+  const [customBreeds, setCustomBreeds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(CUSTOM_BREEDS_KEY) || "[]");
+    } catch {
+      return [];
+    }
+  });
+  const [customBreedInput, setCustomBreedInput] = useState("");
   const [activePrakar, setActivePrakar] = useState<string | null>(
     prakarFilter ?? null,
   );
@@ -337,18 +381,51 @@ export default function CowRegistry({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!form.name.trim()) {
+      toast.error(
+        lang === "hi" ? "गाय का नाम दर्ज करें" : "Please enter cow name",
+      );
+      return;
+    }
+    if (!form.healthStatus || form.healthStatus === "") {
+      toast.error(
+        lang === "hi" ? "स्वास्थ्य स्थिति चुनें" : "Please select health status",
+      );
+      return;
+    }
+    if (form.prakar === "none" || !form.prakar) {
+      toast.error(
+        lang === "hi" ? "गाय का प्रकार चुनें" : "Please select cow type (Prakar)",
+      );
+      return;
+    }
     const age = encodeBirthDate(
       Number.parseInt(form.birthYear) || currentYear,
       Number.parseInt(form.birthMonth) || 1,
     );
     const prakarVal = form.prakar === "none" ? "" : form.prakar;
     const finalStatus = prakarVal || form.healthStatus;
+    let finalBreed = form.breed;
+    if (form.breed === "any") {
+      const trimmed = customBreedInput.trim();
+      if (!trimmed) {
+        toast.error(
+          lang === "hi" ? "कृपया नस्ल दर्ज करें" : "Please enter breed name",
+        );
+        return;
+      }
+      const updated = [...customBreeds, trimmed];
+      setCustomBreeds(updated);
+      localStorage.setItem(CUSTOM_BREEDS_KEY, JSON.stringify(updated));
+      setCustomBreedInput("");
+      finalBreed = trimmed;
+    }
     try {
       if (editCow) {
         await updateCow.mutateAsync({
           id: editCow.id,
           name: form.name,
-          breed: form.breed,
+          breed: finalBreed,
           age,
           healthStatus: finalStatus,
           description: form.description,
@@ -360,7 +437,7 @@ export default function CowRegistry({
       } else {
         await addCow.mutateAsync({
           name: form.name,
-          breed: form.breed,
+          breed: finalBreed,
           age,
           healthStatus: finalStatus,
           description: form.description,
@@ -395,6 +472,23 @@ export default function CowRegistry({
         lang === "hi" ? "जन्म महीना और वर्ष भरें" : "Enter birth month and year",
       );
       return;
+    }
+    // Validate: calf's birth year cannot be before mother's approximate birth year
+    const calfBirthYear = Number.parseInt(calfForm.birthYear);
+    const calfBirthMonth = Number.parseInt(calfForm.birthMonth);
+    if (calvesCow.age && Number(calvesCow.age) > 0) {
+      const motherApproxBirthYear = currentYear - Number(calvesCow.age);
+      if (
+        calfBirthYear < motherApproxBirthYear ||
+        (calfBirthYear === motherApproxBirthYear && calfBirthMonth < 1)
+      ) {
+        toast.error(
+          lang === "hi"
+            ? `बच्चे की उम्र माँ से ज़्यादा नहीं हो सकती (माँ लगभग ${motherApproxBirthYear} में पैदा हुई)`
+            : `Calf's birth year cannot be before mother's birth year (mother born ~${motherApproxBirthYear})`,
+        );
+        return;
+      }
     }
     try {
       await addCalf.mutateAsync({
@@ -615,6 +709,14 @@ export default function CowRegistry({
                                   {cow.tagNumber}
                                 </Badge>
                               )}
+                              {true && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] px-1.5 py-0 h-4 bg-green-50 text-green-700 border-green-300"
+                                >
+                                  {getAgpId(cow.id)}
+                                </Badge>
+                              )}
                             </div>
                             <p className="text-xs text-muted-foreground line-clamp-1">
                               {cow.description}
@@ -772,6 +874,14 @@ export default function CowRegistry({
                             <Tag className="h-2.5 w-2.5" />#{cow.id.toString()}
                           </Badge>
                         )}
+                        {true && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] px-1.5 py-0 h-5 bg-green-50 text-green-700 border-green-300"
+                          >
+                            {getAgpId(cow.id)}
+                          </Badge>
+                        )}
                         <span
                           className={cn(
                             "text-[10px] px-2 py-0.5 rounded-full font-semibold",
@@ -873,14 +983,98 @@ export default function CowRegistry({
             </div>
             <div className="space-y-1.5">
               <Label>{t("breed")} *</Label>
-              <Input
-                required
-                placeholder={t("breed")}
-                value={form.breed}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, breed: e.target.value }))
+              <Select
+                value={
+                  DEFAULT_BREEDS.some(
+                    (b) => (lang === "hi" ? b.hi : b.en) === form.breed,
+                  ) || customBreeds.includes(form.breed)
+                    ? form.breed
+                    : form.breed
+                      ? "any"
+                      : undefined
                 }
-              />
+                onValueChange={(v) => {
+                  if (v === "any") {
+                    setForm((p) => ({ ...p, breed: "any" }));
+                    setCustomBreedInput("");
+                  } else {
+                    setForm((p) => ({ ...p, breed: v }));
+                    setCustomBreedInput("");
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={lang === "hi" ? "नस्ल चुनें" : "Select breed"}
+                  />
+                </SelectTrigger>
+                <SelectContent className="max-h-[280px] overflow-y-auto">
+                  {DEFAULT_BREEDS.map((b) => {
+                    const label = lang === "hi" ? b.hi : b.en;
+                    return (
+                      <SelectItem key={b.en} value={label}>
+                        {label}
+                      </SelectItem>
+                    );
+                  })}
+                  {customBreeds.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="any">
+                    {lang === "hi" ? "अन्य (दर्ज करें)" : "Other (enter)"}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {(form.breed === "any" ||
+                (!DEFAULT_BREEDS.some(
+                  (b) => (lang === "hi" ? b.hi : b.en) === form.breed,
+                ) &&
+                  !customBreeds.includes(form.breed) &&
+                  form.breed !== "")) && (
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    placeholder={
+                      lang === "hi" ? "नई नस्ल का नाम लिखें" : "Enter breed name"
+                    }
+                    value={customBreedInput}
+                    onChange={(e) => setCustomBreedInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && customBreedInput.trim()) {
+                        e.preventDefault();
+                        const nb = customBreedInput.trim();
+                        const updated = [...customBreeds, nb];
+                        setCustomBreeds(updated);
+                        localStorage.setItem(
+                          CUSTOM_BREEDS_KEY,
+                          JSON.stringify(updated),
+                        );
+                        setForm((p) => ({ ...p, breed: nb }));
+                        setCustomBreedInput("");
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      const nb = customBreedInput.trim();
+                      if (!nb) return;
+                      const updated = [...customBreeds, nb];
+                      setCustomBreeds(updated);
+                      localStorage.setItem(
+                        CUSTOM_BREEDS_KEY,
+                        JSON.stringify(updated),
+                      );
+                      setForm((p) => ({ ...p, breed: nb }));
+                      setCustomBreedInput("");
+                    }}
+                  >
+                    {lang === "hi" ? "जोड़ें" : "Add"}
+                  </Button>
+                </div>
+              )}
             </div>
             {/* Birth Month + Birth Year */}
             <div className="grid grid-cols-2 gap-3">

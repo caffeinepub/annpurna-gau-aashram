@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   Archive,
+  Building2,
+  GitBranch,
   Globe,
   HandCoins,
   HeartPulse,
@@ -17,10 +19,11 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Page } from "../App";
 import { useAuth } from "../lib/AuthContext";
 import { useLang } from "../lib/LanguageContext";
+import { loadProfileLogo } from "../pages/Profile";
 
 interface LayoutProps {
   page: Page;
@@ -39,9 +42,11 @@ const allNavItems: {
   { id: "cows", icon: PawPrint, en: "Gau Parivar", hi: "गाय परिवार" },
   { id: "health", icon: HeartPulse, en: "Swasthya", hi: "स्वास्थ्य" },
   { id: "milk", icon: Milk, en: "Dudh", hi: "दूध प्रबंधन" },
+  { id: "vanshavali", icon: GitBranch, en: "Vanshavali", hi: "वंशावली" },
   { id: "donations", icon: HandCoins, en: "Daan", hi: "दान" },
   { id: "announcements", icon: Megaphone, en: "Ghoshna", hi: "घोषणा" },
   { id: "scanner", icon: ScanLine, en: "QR Scanner", hi: "QR स्कैनर" },
+  { id: "profile", icon: Building2, en: "Profile", hi: "प्रोफ़ाइल" },
   { id: "backup", icon: Archive, en: "Backup", hi: "बैकअप" },
   { id: "changelog", icon: History, en: "Changes", hi: "बदलाव" },
   { id: "admin", icon: Shield, en: "Admin", hi: "व्यवस्थापक", adminOnly: true },
@@ -58,6 +63,8 @@ const ocidMap: Record<Page, string> = {
   backup: "nav.backup.link",
   changelog: "nav.changelog.link",
   admin: "nav.admin.link",
+  profile: "nav.profile.link",
+  vanshavali: "nav.vanshavali.link",
 };
 
 function roleBadgeClass(role: string) {
@@ -83,6 +90,17 @@ export default function Layout({ page, setPage, children }: LayoutProps) {
   const { lang, setLang, t } = useLang();
   const { currentUser, logout, isAdmin } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileLogo, setProfileLogo] = useState(() => loadProfileLogo());
+
+  // Listen for profile updates
+  useEffect(() => {
+    function handleUpdate() {
+      setProfileLogo(loadProfileLogo());
+    }
+    window.addEventListener("gaushala_profile_updated", handleUpdate);
+    return () =>
+      window.removeEventListener("gaushala_profile_updated", handleUpdate);
+  }, []);
 
   const toggleLang = () => setLang(lang === "en" ? "hi" : "en");
 
@@ -90,6 +108,16 @@ export default function Layout({ page, setPage, children }: LayoutProps) {
     if (item.adminOnly) return isAdmin;
     return true;
   });
+
+  const logoImg = profileLogo ? (
+    <img src={profileLogo} alt="Logo" className="w-full h-full object-cover" />
+  ) : (
+    <img
+      src="/assets/generated/gaushala-logo-transparent.dim_120x120.png"
+      alt="Logo"
+      className="w-full h-full object-cover"
+    />
+  );
 
   const sidebarNav = (
     <>
@@ -197,11 +225,7 @@ export default function Layout({ page, setPage, children }: LayoutProps) {
         <div className="p-5 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-sidebar-accent border border-sidebar-border">
-              <img
-                src="/assets/generated/gaushala-logo-transparent.dim_120x120.png"
-                alt="Logo"
-                className="w-full h-full object-cover"
-              />
+              {logoImg}
             </div>
             <div>
               <h1 className="text-sidebar-foreground font-display text-sm font-semibold leading-tight">
@@ -237,11 +261,7 @@ export default function Layout({ page, setPage, children }: LayoutProps) {
               <div className="p-4 flex items-center justify-between border-b border-sidebar-border">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full overflow-hidden bg-sidebar-accent border border-sidebar-border">
-                    <img
-                      src="/assets/generated/gaushala-logo-transparent.dim_120x120.png"
-                      alt="Logo"
-                      className="w-full h-full object-cover"
-                    />
+                    {logoImg}
                   </div>
                   <h1 className="text-sidebar-foreground font-display text-sm font-semibold">
                     {t("appName")}
