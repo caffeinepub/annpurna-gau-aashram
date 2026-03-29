@@ -10,6 +10,7 @@ import Nat "mo:core/Nat";
 import Iter "mo:core/Iter";
 
 
+// Use with clause for migration
 
 actor {
   type Cow = {
@@ -103,18 +104,18 @@ actor {
 
   type FeedStock = {
     id : Nat;
-    feedType : Text;
-    totalStock : Float;
-    dailyPerCow : Float;
+    feedType : Text; // "wet" or "dry"
+    totalStock : Float; // in kg
+    dailyPerCow : Float; // average daily consumption per cow in kg
     lastUpdated : Time.Time;
     updatedBy : Text;
   };
 
   type FeedHistory = {
     id : Nat;
-    feedType : Text;
-    action : Text;
-    quantity : Float;
+    feedType : Text; // "wet" or "dry"
+    action : Text; // "add" or "consume"
+    quantity : Float; // in kg
     notes : Text;
     date : Time.Time;
     recordedBy : Text;
@@ -134,18 +135,18 @@ actor {
   let feedStocks = Map.empty<Nat, FeedStock>();
   let feedHistories = Map.empty<Nat, FeedHistory>();
 
-  stable var cowIdCounter = 1;
-  stable var calfIdCounter = 1;
-  stable var donationIdCounter = 1;
-  stable var healthRecordIdCounter = 1;
-  stable var announcementIdCounter = 1;
-  stable var userIdCounter = 2;
-  stable var changeLogIdCounter = 1;
-  stable var milkRecordIdCounter = 1;
-  stable var feedStockIdCounter = 3;
-  stable var feedHistoryIdCounter = 1;
+  var cowIdCounter = 1;
+  var calfIdCounter = 1;
+  var donationIdCounter = 1;
+  var healthRecordIdCounter = 1;
+  var announcementIdCounter = 1;
+  var userIdCounter = 2;
+  var changeLogIdCounter = 1;
+  var milkRecordIdCounter = 1;
+  var feedStockIdCounter = 3;
+  var feedHistoryIdCounter = 1;
 
-  stable var gaushaalaProfile : GaushaalaProfile = {
+  var gaushaalaProfile : GaushaalaProfile = {
     name = "Annpurna Gau Aashram";
     nameHindi = "अन्नपूर्णा गौ आश्रम";
     description = "A shelter dedicated to the care and protection of animals.";
@@ -155,114 +156,7 @@ actor {
     logoBase64 = "";
   };
 
-  stable var defaultAdminCreated = false;
-  stable var stableCows : [(Nat, Cow)] = [];
-  stable var stableCalves : [(Nat, Calf)] = [];
-  stable var stableDonations : [(Nat, Donation)] = [];
-  stable var stableHealthRecords : [(Nat, HealthRecord)] = [];
-  stable var stableAnnouncements : [(Nat, Announcement)] = [];
-  stable var stableUsers : [(Nat, User)] = [];
-  stable var stableChangeLogs : [(Nat, ChangeLog)] = [];
-  stable var stableMilkRecords : [(Nat, MilkRecord)] = [];
-  stable var stableFeedStocks : [(Nat, FeedStock)] = [];
-  stable var stableFeedHistories : [(Nat, FeedHistory)] = [];
-
-  // Fresh install seed -- guard with containsKey to prevent trap on re-init
-  do {
-    if (not users.containsKey(1)) {
-      let defaultAdmin : User = {
-        id = 1;
-        name = "Admin";
-        role = "admin";
-        pin = "000000";
-      };
-      users.add(1, defaultAdmin);
-    };
-
-    if (not feedStocks.containsKey(1)) {
-      let wetFeed : FeedStock = {
-        id = 1;
-        feedType = "wet";
-        totalStock = 0.0;
-        dailyPerCow = 0.0;
-        lastUpdated = Time.now();
-        updatedBy = "system";
-      };
-      feedStocks.add(1, wetFeed);
-    };
-
-    if (not feedStocks.containsKey(2)) {
-      let dryFeed : FeedStock = {
-        id = 2;
-        feedType = "dry";
-        totalStock = 0.0;
-        dailyPerCow = 0.0;
-        lastUpdated = Time.now();
-        updatedBy = "system";
-      };
-      feedStocks.add(2, dryFeed);
-    };
-  };
-
-  system func preupgrade() {
-    stableCows := cows.entries().toArray();
-    stableCalves := calves.entries().toArray();
-    stableDonations := donations.entries().toArray();
-    stableHealthRecords := healthRecords.entries().toArray();
-    stableAnnouncements := announcements.entries().toArray();
-    stableUsers := users.entries().toArray();
-    stableChangeLogs := changeLogs.entries().toArray();
-    stableMilkRecords := milkRecords.entries().toArray();
-    stableFeedStocks := feedStocks.entries().toArray();
-    stableFeedHistories := feedHistories.entries().toArray();
-  };
-
-  system func postupgrade() {
-    for ((k, v) in stableCows.vals()) { cows.add(k, v); };
-    for ((k, v) in stableCalves.vals()) { calves.add(k, v); };
-    for ((k, v) in stableDonations.vals()) { donations.add(k, v); };
-    for ((k, v) in stableHealthRecords.vals()) { healthRecords.add(k, v); };
-    for ((k, v) in stableAnnouncements.vals()) { announcements.add(k, v); };
-    for ((k, v) in stableUsers.vals()) { users.add(k, v); };
-    for ((k, v) in stableChangeLogs.vals()) { changeLogs.add(k, v); };
-    for ((k, v) in stableMilkRecords.vals()) { milkRecords.add(k, v); };
-    for ((k, v) in stableFeedStocks.vals()) { feedStocks.add(k, v); };
-    for ((k, v) in stableFeedHistories.vals()) { feedHistories.add(k, v); };
-
-    stableCows := [];
-    stableCalves := [];
-    stableDonations := [];
-    stableHealthRecords := [];
-    stableAnnouncements := [];
-    stableUsers := [];
-    stableChangeLogs := [];
-    stableMilkRecords := [];
-    stableFeedStocks := [];
-    stableFeedHistories := [];
-
-    // Ensure at least one admin exists after upgrade
-    let adminExists = users.values().find(func(u : User) : Bool {
-      u.role == "admin";
-    });
-    switch (adminExists) {
-      case (null) {
-        if (not users.containsKey(1)) {
-          users.add(1, { id = 1; name = "Admin"; role = "admin"; pin = "000000" });
-        };
-        if (userIdCounter < 2) { userIdCounter := 2; };
-      };
-      case (?_) {};
-    };
-
-    // Seed feed stocks if missing
-    if (not feedStocks.containsKey(1)) {
-      feedStocks.add(1, { id = 1; feedType = "wet"; totalStock = 0.0; dailyPerCow = 0.0; lastUpdated = Time.now(); updatedBy = "system" });
-    };
-    if (not feedStocks.containsKey(2)) {
-      feedStocks.add(2, { id = 2; feedType = "dry"; totalStock = 0.0; dailyPerCow = 0.0; lastUpdated = Time.now(); updatedBy = "system" });
-    };
-  };
-
+  // Helper function to compare by date
   func compareByDate(a : MilkRecord, b : MilkRecord) : Order.Order {
     Int.compare(a.addedDate, b.addedDate);
   };
@@ -308,30 +202,19 @@ actor {
       .toArray();
   };
 
-  public query ({ caller }) func getProfile() : async GaushaalaProfile {
-    gaushaalaProfile;
+  // ================================= USERS =================================
+  public query ({ caller }) func getAllUsers() : async [User] {
+    users.values().toArray();
   };
 
-  public shared ({ caller }) func updateProfile(
-    name : Text,
-    nameHindi : Text,
-    description : Text,
-    descriptionHindi : Text,
-    phone : Text,
-    address : Text,
-    logoBase64 : Text,
-    changedBy : Text,
-  ) : async () {
-    gaushaalaProfile := {
-      name;
-      nameHindi;
-      description;
-      descriptionHindi;
-      phone;
-      address;
-      logoBase64;
-    };
-    recordLog(changedBy, "edit", "profile", name, "Updated gaushala profile");
+  public query ({ caller }) func getUserByPin(pin : Text) : async ?User {
+    let iter = users.values();
+    iter.find(func(user) { user.pin == pin });
+  };
+
+  public query ({ caller }) func getUsersByPin(pin : Text) : async [User] {
+    let iter = users.values();
+    iter.filter(func(user) { user.pin == pin }).toArray();
   };
 
   public shared ({ caller }) func createUser(name : Text, role : Text, pin : Text) : async Nat {
@@ -382,20 +265,6 @@ actor {
     };
   };
 
-  public query ({ caller }) func getAllUsers() : async [User] {
-    users.values().toArray();
-  };
-
-  public query ({ caller }) func getUserByPin(pin : Text) : async ?User {
-    let iter = users.values();
-    iter.find(func(user) { user.pin == pin });
-  };
-
-  public query ({ caller }) func getUsersByPin(pin : Text) : async [User] {
-    let iter = users.values();
-    iter.filter(func(user) { user.pin == pin }).toArray();
-  };
-
   public shared ({ caller }) func ensureDefaultAdmin() : async () {
     let adminExists = users.values().find(func(u : User) : Bool {
       u.role == "admin";
@@ -417,6 +286,7 @@ actor {
     };
   };
 
+  // ================================= CHANGE LOGS =================================
   public shared ({ caller }) func addChangeLog(
     userName : Text,
     action : Text,
@@ -430,6 +300,8 @@ actor {
   public query ({ caller }) func getAllChangeLogs() : async [ChangeLog] {
     changeLogs.values().toArray();
   };
+
+  // ================================= COWS =================================
 
   public shared ({ caller }) func addCow(
     name : Text,
@@ -525,6 +397,7 @@ actor {
     );
   };
 
+  // ================================= CALVES =================================
   public shared ({ caller }) func addCalf(
     cowId : Nat,
     birthMonth : Nat,
@@ -581,6 +454,7 @@ actor {
     );
   };
 
+  // ================================= DONATIONS =================================
   public shared ({ caller }) func addDonation(
     donorName : Text,
     amount : Float,
@@ -620,6 +494,7 @@ actor {
     donations.values().toArray();
   };
 
+  // ================================= HEALTH RECORDS =================================
   public shared ({ caller }) func addHealthRecord(
     cowId : Nat,
     notes : Text,
@@ -663,6 +538,7 @@ actor {
     iter.filter(func(record) { record.cowId == cowId }).toArray();
   };
 
+  // ================================= ANNOUNCEMENTS =================================
   public shared ({ caller }) func addAnnouncement(
     title : Text,
     titleHindi : Text,
@@ -699,6 +575,7 @@ actor {
     iter.filter(func(a) { a.isActive }).toArray();
   };
 
+  // ================================= MILK RECORDS =================================
   public shared ({ caller }) func addMilkRecord(
     cowId : Nat,
     cowName : Text,
@@ -758,9 +635,39 @@ actor {
     todayRecords.sort(compareByDate);
   };
 
+  // ================================= PROFILE =================================
+
+  public query ({ caller }) func getProfile() : async GaushaalaProfile {
+    gaushaalaProfile;
+  };
+
+  public shared ({ caller }) func updateProfile(
+    name : Text,
+    nameHindi : Text,
+    description : Text,
+    descriptionHindi : Text,
+    phone : Text,
+    address : Text,
+    logoBase64 : Text,
+    changedBy : Text,
+  ) : async () {
+    gaushaalaProfile := {
+      name;
+      nameHindi;
+      description;
+      descriptionHindi;
+      phone;
+      address;
+      logoBase64;
+    };
+    recordLog(changedBy, "edit", "profile", name, "Updated gaushala profile");
+  };
+
+  // ================================= FEED STOCK =================================
+
   public shared ({ caller }) func updateFeedStock(
     feedType : Text,
-    totalStock : Float,
+    totalStock : Float, // Overwrites total stock value
     dailyPerCow : Float,
     updatedBy : Text,
   ) : async () {

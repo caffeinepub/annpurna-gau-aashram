@@ -13,7 +13,6 @@ import Dashboard from "./pages/Dashboard";
 import Donations from "./pages/Donations";
 import FeedManagement from "./pages/FeedManagement";
 import HealthRecords from "./pages/HealthRecords";
-import LoginPage from "./pages/LoginPage";
 import MilkManagement from "./pages/MilkManagement";
 import Profile from "./pages/Profile";
 import QRScanner from "./pages/QRScanner";
@@ -40,11 +39,7 @@ function AppContent() {
   const [prakarFilter, setPrakarFilter] = useState<string | null>(null);
   const { currentUser } = useAuth();
 
-  const changedBy = currentUser?.name ?? "Unknown";
-
-  if (!currentUser) {
-    return <LoginPage />;
-  }
+  const changedBy = currentUser?.name ?? "Guest";
 
   function navigateToHealth(cowId: bigint | null = null) {
     setHealthCowFilter(cowId);
