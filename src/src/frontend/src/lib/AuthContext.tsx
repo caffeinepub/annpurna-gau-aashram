@@ -31,6 +31,18 @@ function serializeUser(user: AuthUser): string {
 function deserializeUser(raw: string): AuthUser | null {
   try {
     const obj = JSON.parse(raw);
+    // Validate all required fields are present and role is a valid string
+    if (
+      !obj ||
+      typeof obj.role !== "string" ||
+      !obj.id ||
+      !obj.name ||
+      !obj.pin
+    )
+      return null;
+    const role = obj.role.toLowerCase();
+    // Only allow known roles -- if role is unknown/corrupt, reject the session
+    if (role !== "admin" && role !== "editor" && role !== "viewer") return null;
     return { ...obj, id: BigInt(obj.id) };
   } catch {
     return null;
@@ -71,7 +83,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
     const raw = localStorage.getItem("gaushala_user");
     if (!raw) return null;
-    return deserializeUser(raw);
+    const user = deserializeUser(raw);
+    // If deserialization failed (corrupt/invalid session), clear it
+    if (!user) {
+      localStorage.removeItem("gaushala_user");
+      return null;
+    }
+    return user;
   });
 
   useEffect(() => {
