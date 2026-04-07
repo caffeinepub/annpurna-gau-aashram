@@ -88,6 +88,9 @@ function progressBarColor(count: number): string {
 export default function AdminPage() {
   const { lang } = useLang();
   const { currentUser, isAdmin } = useAuth();
+  // Fallback: also check role directly in case isAdmin is stale from localStorage
+  const hasAdminAccess =
+    isAdmin || currentUser?.role?.toLowerCase() === "admin";
   const { data: users = [], isLoading } = useGetAllUsers();
   const { data: onlineUserIds = [] } = useGetOnlineUsers();
   const createUser = useCreateUser();
@@ -112,7 +115,7 @@ export default function AdminPage() {
     return onlineUserIds.some((id) => id === userId);
   }
 
-  if (!isAdmin) {
+  if (!hasAdminAccess) {
     return (
       <div className="p-8 text-center text-muted-foreground">
         <Shield className="h-12 w-12 mx-auto mb-3 opacity-30" />

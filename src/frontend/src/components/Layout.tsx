@@ -113,8 +113,11 @@ export default function Layout({ page, setPage, children }: LayoutProps) {
 
   const toggleLang = () => setLang(lang === "en" ? "hi" : "en");
 
+  // Fallback: also check role directly from currentUser in case isAdmin is stale
+  const userIsAdmin = isAdmin || currentUser?.role?.toLowerCase() === "admin";
+
   const navItems = allNavItems.filter((item) => {
-    if (item.adminOnly) return isAdmin;
+    if (item.adminOnly) return userIsAdmin;
     return true;
   });
 

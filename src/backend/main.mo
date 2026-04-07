@@ -5,13 +5,11 @@ import Int "mo:core/Int";
 import Float "mo:core/Float";
 import Text "mo:core/Text";
 import Order "mo:core/Order";
-import Map "mo:core/Map";
 import Nat "mo:core/Nat";
-import Iter "mo:core/Iter";
-
+import Migration "migration";
 
 // Use with clause for migration
-
+(with migration = Migration.run)
 actor {
   type Cow = {
     id : Nat;
@@ -123,30 +121,30 @@ actor {
 
   let MAX_USERS : Nat = 50;
 
-  let cows = Map.empty<Nat, Cow>();
-  let calves = Map.empty<Nat, Calf>();
-  let donations = Map.empty<Nat, Donation>();
-  let healthRecords = Map.empty<Nat, HealthRecord>();
-  let announcements = Map.empty<Nat, Announcement>();
-  let users = Map.empty<Nat, User>();
-  let changeLogs = Map.empty<Nat, ChangeLog>();
-  let milkRecords = Map.empty<Nat, MilkRecord>();
-  let userHeartbeats = Map.empty<Nat, Time.Time>();
-  let feedStocks = Map.empty<Nat, FeedStock>();
-  let feedHistories = Map.empty<Nat, FeedHistory>();
+  stable var cowsArr : [Cow] = [];
+  stable var calvesArr : [Calf] = [];
+  stable var donationsArr : [Donation] = [];
+  stable var healthRecordsArr : [HealthRecord] = [];
+  stable var announcementsArr : [Announcement] = [];
+  stable var usersArr : [User] = [];
+  stable var changeLogsArr : [ChangeLog] = [];
+  stable var milkRecordsArr : [MilkRecord] = [];
+  stable var userHeartbeatsArr : [(Nat, Time.Time)] = [];
+  stable var feedStocksArr : [FeedStock] = [];
+  stable var feedHistoriesArr : [FeedHistory] = [];
 
-  var cowIdCounter = 1;
-  var calfIdCounter = 1;
-  var donationIdCounter = 1;
-  var healthRecordIdCounter = 1;
-  var announcementIdCounter = 1;
-  var userIdCounter = 2;
-  var changeLogIdCounter = 1;
-  var milkRecordIdCounter = 1;
-  var feedStockIdCounter = 3;
-  var feedHistoryIdCounter = 1;
+  stable var cowIdCounter = 1;
+  stable var calfIdCounter = 1;
+  stable var donationIdCounter = 1;
+  stable var healthRecordIdCounter = 1;
+  stable var announcementIdCounter = 1;
+  stable var userIdCounter = 2;
+  stable var changeLogIdCounter = 1;
+  stable var milkRecordIdCounter = 1;
+  stable var feedStockIdCounter = 3;
+  stable var feedHistoryIdCounter = 1;
 
-  var gaushaalaProfile : GaushaalaProfile = {
+  stable var gaushaalaProfile : GaushaalaProfile = {
     name = "Annpurna Gau Aashram";
     nameHindi = "अन्नपूर्णा गौ आश्रम";
     description = "A shelter dedicated to the care and protection of animals.";
@@ -183,42 +181,39 @@ actor {
       details;
       timestamp = Time.now();
     };
-    changeLogs.add(id, log);
+    changeLogsArr := changeLogsArr.concat([log]);
   };
 
   public shared ({ caller }) func sendHeartbeat(userId : Nat) : async () {
-    userHeartbeats.add(userId, Time.now());
+    let now = Time.now();
+    userHeartbeatsArr := userHeartbeatsArr.filter(func((id, _)) { id != userId });
+    userHeartbeatsArr := userHeartbeatsArr.concat([(userId, now)]);
   };
 
   public query ({ caller }) func getOnlineUsers() : async [Nat] {
     let threeMinutes : Int = 180_000_000_000;
     let now = Time.now();
-    let iter = userHeartbeats.entries();
-    iter
-      .filter(func((uid, ts) : (Nat, Time.Time)) : Bool {
-        (now - ts) < threeMinutes;
-      })
-      .map(func((uid, _) : (Nat, Time.Time)) : Nat { uid })
-      .toArray();
+    userHeartbeatsArr.filter(
+      func((uid, ts)) { (now - ts) < threeMinutes }
+    ).map(func((uid, _)) { uid });
   };
 
   // ================================= USERS =================================
   public query ({ caller }) func getAllUsers() : async [User] {
-    users.values().toArray();
+    usersArr;
   };
 
   public query ({ caller }) func getUserByPin(pin : Text) : async ?User {
-    let iter = users.values();
-    iter.find(func(user) { user.pin == pin });
+    usersArr.find(func(u) { u.pin == pin });
   };
 
   public query ({ caller }) func getUsersByPin(pin : Text) : async [User] {
-    let iter = users.values();
-    iter.filter(func(user) { user.pin == pin }).toArray();
+    let allUsersIter = usersArr.values();
+    allUsersIter.filter(func(u) { u.pin == pin }).toArray();
   };
 
   public shared ({ caller }) func createUser(name : Text, role : Text, pin : Text) : async Nat {
-    let currentCount = users.size();
+    let currentCount = usersArr.size();
     if (currentCount >= MAX_USERS) {
       Runtime.trap("User limit reached: maximum " # MAX_USERS.toText() # " users allowed");
     };
@@ -230,30 +225,35 @@ actor {
       role;
       pin;
     };
-    users.add(id, user);
+    usersArr := usersArr.concat([user]);
     id;
   };
 
   public shared ({ caller }) func deleteUser(id : Nat) : async () {
-    if (not users.containsKey(id)) {
+    let userExists = usersArr.find(func(u) { u.id == id }) != null;
+    if (not userExists) {
       Runtime.trap("User not found");
     };
-    users.remove(id);
-    userHeartbeats.remove(id);
+    usersArr := usersArr.filter(func(u) { u.id != id });
+    userHeartbeatsArr := userHeartbeatsArr.filter(func((uid, _)) { uid != id });
   };
 
   public shared ({ caller }) func changeUserPin(id : Nat, newPin : Text, changedBy : Text) : async () {
-    switch (users.get(id)) {
+    let userIndex = usersArr.findIndex(func(u) { u.id == id });
+    switch (userIndex) {
       case (null) { Runtime.trap("User not found") };
-      case (?existingUser) {
+      case (?index) {
+        let existingUser = usersArr[index];
         let updatedUser : User = {
           id = existingUser.id;
           name = existingUser.name;
           role = existingUser.role;
           pin = newPin;
         };
-        users.remove(id);
-        users.add(id, updatedUser);
+        var newUsersArr = usersArr;
+        newUsersArr := newUsersArr.sliceToArray(0, index).concat(newUsersArr.sliceToArray(index + 1, newUsersArr.size())).concat([updatedUser]);
+        usersArr := newUsersArr;
+
         recordLog(
           changedBy,
           "edit",
@@ -266,21 +266,20 @@ actor {
   };
 
   public shared ({ caller }) func ensureDefaultAdmin() : async () {
-    let adminExists = users.values().find(func(u : User) : Bool {
-      u.role == "admin";
-    });
+    let adminExists = usersArr.find(func(u) { u.role == "admin" });
     switch (adminExists) {
       case (null) {
-        if (not users.containsKey(1)) {
+        let defaultAdminExists = usersArr.find(func(u) { u.id == 1 }) != null;
+        if (not defaultAdminExists) {
           let defaultAdmin : User = {
             id = 1;
             name = "Admin";
             role = "admin";
             pin = "000000";
           };
-          users.add(1, defaultAdmin);
+          usersArr := usersArr.concat([defaultAdmin]);
         };
-        if (userIdCounter < 2) { userIdCounter := 2; };
+        if (userIdCounter < 2) { userIdCounter := 2 };
       };
       case (?_) {};
     };
@@ -298,7 +297,7 @@ actor {
   };
 
   public query ({ caller }) func getAllChangeLogs() : async [ChangeLog] {
-    changeLogs.values().toArray();
+    changeLogsArr;
   };
 
   // ================================= COWS =================================
@@ -326,20 +325,20 @@ actor {
       tagNumber;
       qrCode;
     };
-    cows.add(id, cow);
+    cowsArr := cowsArr.concat([cow]);
     recordLog(changedBy, "add", "cow", name, "Added cow: " # name);
     id;
   };
 
   public query ({ caller }) func getCow(id : Nat) : async Cow {
-    switch (cows.get(id)) {
+    switch (cowsArr.find(func(cow) { cow.id == id })) {
       case (null) { Runtime.trap("Cow with id " # id.toText() # " not found") };
       case (?cow) { cow };
     };
   };
 
   public query ({ caller }) func getAllCows() : async [Cow] {
-    cows.values().toArray();
+    cowsArr;
   };
 
   public shared ({ caller }) func updateCow(
@@ -353,9 +352,11 @@ actor {
     qrCode : Text,
     changedBy : Text,
   ) : async () {
-    switch (cows.get(id)) {
+    let index = cowsArr.findIndex(func(cow) { cow.id == id });
+    switch (index) {
       case (null) { Runtime.trap("Cow with id " # id.toText() # " not found") };
-      case (?existingCow) {
+      case (?oldIndex) {
+        let existingCow = cowsArr[oldIndex];
         let updatedCow : Cow = {
           id;
           name;
@@ -367,18 +368,21 @@ actor {
           tagNumber;
           qrCode;
         };
-        cows.remove(id);
-        cows.add(id, updatedCow);
+        var newCowsArr = cowsArr;
+        newCowsArr := newCowsArr.sliceToArray(0, oldIndex).concat(newCowsArr.sliceToArray(oldIndex + 1, newCowsArr.size())).concat([updatedCow]);
+        cowsArr := newCowsArr;
+
         recordLog(changedBy, "edit", "cow", name, "Updated cow: " # name);
       };
     };
   };
 
   public shared ({ caller }) func deleteCow(id : Nat, changedBy : Text) : async () {
-    if (not cows.containsKey(id)) {
+    let cowExists = cowsArr.find(func(cow) { cow.id == id }) != null;
+    if (not cowExists) {
       Runtime.trap("Cow with id " # id.toText() # " not found");
     };
-    cows.remove(id);
+    cowsArr := cowsArr.filter(func(cow) { cow.id != id });
     recordLog(
       changedBy,
       "delete",
@@ -389,8 +393,7 @@ actor {
   };
 
   public query ({ caller }) func getCowByTag(tag : Text) : async ?Cow {
-    let iter = cows.values();
-    iter.find(
+    cowsArr.find(
       func(cow) {
         cow.tagNumber == tag or cow.qrCode == tag;
       }
@@ -407,7 +410,8 @@ actor {
     notes : Text,
     changedBy : Text,
   ) : async Nat {
-    switch (cows.get(cowId)) {
+    let cowExists = cowsArr.find(func(cow) { cow.id == cowId });
+    switch (cowExists) {
       case (null) { Runtime.trap("Cow not found") };
       case (?_) {
         let id = calfIdCounter;
@@ -422,7 +426,7 @@ actor {
           notes;
           addedDate = Time.now();
         };
-        calves.add(id, calf);
+        calvesArr := calvesArr.concat([calf]);
         recordLog(
           changedBy,
           "add",
@@ -436,15 +440,15 @@ actor {
   };
 
   public query ({ caller }) func getCalvesByCow(cowId : Nat) : async [Calf] {
-    let iter = calves.values();
-    iter.filter(func(calf) { calf.cowId == cowId }).toArray();
+    calvesArr.filter(func(calf) { calf.cowId == cowId });
   };
 
   public shared ({ caller }) func deleteCalf(id : Nat, changedBy : Text) : async () {
-    if (not calves.containsKey(id)) {
+    let calfExists = calvesArr.find(func(calf) { calf.id == id }) != null;
+    if (not calfExists) {
       Runtime.trap("Calf with id " # id.toText() # " not found");
     };
-    calves.remove(id);
+    calvesArr := calvesArr.filter(func(calf) { calf.id != id });
     recordLog(
       changedBy,
       "delete",
@@ -472,7 +476,7 @@ actor {
       message;
       purpose;
     };
-    donations.add(id, donation);
+    donationsArr := donationsArr.concat([donation]);
     recordLog(
       changedBy,
       "add",
@@ -484,14 +488,14 @@ actor {
   };
 
   public query ({ caller }) func getDonation(id : Nat) : async Donation {
-    switch (donations.get(id)) {
+    switch (donationsArr.find(func(donation) { donation.id == id })) {
       case (null) { Runtime.trap("Donation not found") };
       case (?donation) { donation };
     };
   };
 
   public query ({ caller }) func getAllDonations() : async [Donation] {
-    donations.values().toArray();
+    donationsArr;
   };
 
   // ================================= HEALTH RECORDS =================================
@@ -502,7 +506,8 @@ actor {
     vetName : Text,
     changedBy : Text,
   ) : async Nat {
-    if (not cows.containsKey(cowId)) {
+    let cowExists = cowsArr.find(func(cow) { cow.id == cowId }) != null;
+    if (not cowExists) {
       Runtime.trap("Cow not found");
     };
     let id = healthRecordIdCounter;
@@ -515,7 +520,7 @@ actor {
       status;
       vetName;
     };
-    healthRecords.add(id, record);
+    healthRecordsArr := healthRecordsArr.concat([record]);
     recordLog(
       changedBy,
       "add",
@@ -527,15 +532,14 @@ actor {
   };
 
   public query ({ caller }) func getHealthRecord(id : Nat) : async HealthRecord {
-    switch (healthRecords.get(id)) {
+    switch (healthRecordsArr.find(func(record) { record.id == id })) {
       case (null) { Runtime.trap("Health record not found") };
       case (?record) { record };
     };
   };
 
   public query ({ caller }) func getHealthRecordsByCow(cowId : Nat) : async [HealthRecord] {
-    let iter = healthRecords.values();
-    iter.filter(func(record) { record.cowId == cowId }).toArray();
+    healthRecordsArr.filter(func(record) { record.cowId == cowId });
   };
 
   // ================================= ANNOUNCEMENTS =================================
@@ -558,21 +562,20 @@ actor {
       date = Time.now();
       isActive;
     };
-    announcements.add(id, announcement);
+    announcementsArr := announcementsArr.concat([announcement]);
     recordLog(changedBy, "add", "announcement", title, "Added announcement");
     id;
   };
 
   public query ({ caller }) func getAnnouncement(id : Nat) : async Announcement {
-    switch (announcements.get(id)) {
+    switch (announcementsArr.find(func(announcement) { announcement.id == id })) {
       case (null) { Runtime.trap("Announcement not found") };
       case (?announcement) { announcement };
     };
   };
 
   public query ({ caller }) func getActiveAnnouncements() : async [Announcement] {
-    let iter = announcements.values();
-    iter.filter(func(a) { a.isActive }).toArray();
+    announcementsArr.filter(func(a) { a.isActive });
   };
 
   // ================================= MILK RECORDS =================================
@@ -596,7 +599,7 @@ actor {
       addedDate = Time.now();
       changedBy;
     };
-    milkRecords.add(id, record);
+    milkRecordsArr := milkRecordsArr.concat([record]);
     recordLog(
       changedBy,
       "add",
@@ -608,19 +611,19 @@ actor {
   };
 
   public query ({ caller }) func getMilkRecordsByDate(date : Text) : async [MilkRecord] {
-    let iter = milkRecords.values();
-    iter.filter(func(record) { record.date == date }).toArray();
+    milkRecordsArr.filter(func(record) { record.date == date });
   };
 
   public query ({ caller }) func getAllMilkRecords() : async [MilkRecord] {
-    milkRecords.values().toArray();
+    milkRecordsArr;
   };
 
   public shared ({ caller }) func deleteMilkRecord(id : Nat, changedBy : Text) : async () {
-    if (not milkRecords.containsKey(id)) {
+    let milkRecordExists = milkRecordsArr.find(func(record) { record.id == id }) != null;
+    if (not milkRecordExists) {
       Runtime.trap("Milk record not found");
     };
-    milkRecords.remove(id);
+    milkRecordsArr := milkRecordsArr.filter(func(record) { record.id != id });
     recordLog(
       changedBy,
       "delete",
@@ -631,8 +634,7 @@ actor {
   };
 
   public query ({ caller }) func getTodayMilkRecords() : async [MilkRecord] {
-    let todayRecords = milkRecords.values().toArray();
-    todayRecords.sort(compareByDate);
+    milkRecordsArr.sort(compareByDate);
   };
 
   // ================================= PROFILE =================================
@@ -672,6 +674,7 @@ actor {
     updatedBy : Text,
   ) : async () {
     let stockId = if (feedType == "wet") { 1 } else if (feedType == "dry") { 2 } else { Runtime.trap("Invalid feed type") };
+
     let updatedStock : FeedStock = {
       id = stockId;
       feedType;
@@ -680,8 +683,8 @@ actor {
       lastUpdated = Time.now();
       updatedBy;
     };
-    feedStocks.remove(stockId);
-    feedStocks.add(stockId, updatedStock);
+    let filteredStocks = feedStocksArr.filter(func(stock) { stock.id != stockId });
+    feedStocksArr := filteredStocks.concat([updatedStock]);
     recordLog(updatedBy, "update_feed_stock", "feed_stock", feedType, "Feed stock updated");
   };
 
@@ -692,8 +695,15 @@ actor {
     recordedBy : Text,
   ) : async () {
     let stockId = if (feedType == "wet") { 1 } else if (feedType == "dry") { 2 } else { Runtime.trap("Invalid feed type") };
-    let currentStock = switch (feedStocks.get(stockId)) {
-      case (null) { { id = stockId; feedType; totalStock = 0.0; dailyPerCow = 0.0; lastUpdated = Time.now(); updatedBy = recordedBy } };
+    let currentStock : FeedStock = switch (feedStocksArr.find(func(stock) { stock.id == stockId })) {
+      case (null) { {
+        id = stockId;
+        feedType;
+        totalStock = 0.0;
+        dailyPerCow = 0.0;
+        lastUpdated = Time.now();
+        updatedBy = recordedBy;
+      } };
       case (?stock) { stock };
     };
     let updatedStock : FeedStock = {
@@ -704,12 +714,21 @@ actor {
       lastUpdated = Time.now();
       updatedBy = recordedBy;
     };
-    feedStocks.remove(stockId);
-    feedStocks.add(stockId, updatedStock);
+    let filteredStocks = feedStocksArr.filter(func(stock) { stock.id != stockId });
+    feedStocksArr := filteredStocks.concat([updatedStock]);
 
     let historyId = feedHistoryIdCounter;
     feedHistoryIdCounter += 1;
-    feedHistories.add(historyId, { id = historyId; feedType; action = "add"; quantity; notes; date = Time.now(); recordedBy });
+    let newHistory : FeedHistory = {
+      id = historyId;
+      feedType;
+      action = "add";
+      quantity;
+      notes;
+      date = Time.now();
+      recordedBy;
+    };
+    feedHistoriesArr := feedHistoriesArr.concat([newHistory]);
     recordLog(recordedBy, "add_feed_stock", "feed_stock", feedType, "Added " # quantity.toText() # " kg");
   };
 
@@ -721,7 +740,7 @@ actor {
   ) : async () {
     if (quantity <= 0.0) { Runtime.trap("Quantity must be positive") };
     let stockId = if (feedType == "wet") { 1 } else if (feedType == "dry") { 2 } else { Runtime.trap("Invalid feed type") };
-    let currentStock = switch (feedStocks.get(stockId)) {
+    let currentStock = switch (feedStocksArr.find(func(stock) { stock.id == stockId })) {
       case (null) { Runtime.trap("Feed stock not found") };
       case (?stock) { stock };
     };
@@ -734,21 +753,29 @@ actor {
       lastUpdated = Time.now();
       updatedBy = recordedBy;
     };
-    feedStocks.remove(stockId);
-    feedStocks.add(stockId, updatedStock);
+    let filteredStocks = feedStocksArr.filter(func(stock) { stock.id != stockId });
+    feedStocksArr := filteredStocks.concat([updatedStock]);
 
     let historyId = feedHistoryIdCounter;
     feedHistoryIdCounter += 1;
-    feedHistories.add(historyId, { id = historyId; feedType; action = "consume"; quantity; notes; date = Time.now(); recordedBy });
+    let newHistory : FeedHistory = {
+      id = historyId;
+      feedType;
+      action = "consume";
+      quantity;
+      notes;
+      date = Time.now();
+      recordedBy;
+    };
+    feedHistoriesArr := feedHistoriesArr.concat([newHistory]);
     recordLog(recordedBy, "consume_feed", "feed_stock", feedType, "Consumed " # quantity.toText() # " kg");
   };
 
   public query ({ caller }) func getFeedStocks() : async [FeedStock] {
-    feedStocks.values().toArray();
+    feedStocksArr;
   };
 
   public query ({ caller }) func getFeedHistory() : async [FeedHistory] {
-    let historyArray = feedHistories.values().toArray();
-    historyArray.sort(compareFeedHistoryByDate);
+    feedHistoriesArr.sort(compareFeedHistoryByDate);
   };
 };
