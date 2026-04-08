@@ -1,4 +1,11 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useActor } from "../hooks/useActor";
 
 export interface AuthUser {
@@ -10,6 +17,7 @@ export interface AuthUser {
 
 interface AuthContextType {
   currentUser: AuthUser | null;
+  sessionValidated: boolean;
   login: (user: AuthUser) => void;
   logout: () => void;
   canEdit: boolean;
@@ -18,6 +26,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   currentUser: null,
+  sessionValidated: true,
   login: () => {},
   logout: () => {},
   canEdit: false,
@@ -40,7 +49,8 @@ function deserializeUser(raw: string): AuthUser | null {
 // Safe heartbeat call - only calls if the method exists on the actor
 function safeHeartbeat(actor: unknown, userId: bigint) {
   try {
-    const fn = (actor as Record<string, unknown>).sendHeartbeat;
+    const actorRec = actor as unknown as Record<string, unknown>;
+    const fn = actorRec.sendHeartbeat;
     if (typeof fn === "function") {
       (fn as (id: bigint) => Promise<void>).call(actor, userId).catch(() => {});
     }
@@ -49,30 +59,103 @@ function safeHeartbeat(actor: unknown, userId: bigint) {
   }
 }
 
-// Inner component that has access to useActor
-function HeartbeatSender({ userId }: { userId: bigint }) {
-  const { actor } = useActor();
+// Inner component that handles heartbeat AND session validation
+function SessionManager({
+  user,
+  onInvalidSession,
+  onValidated,
+}: {
+  user: AuthUser;
+  onInvalidSession: () => void;
+  onValidated: () => void;
+}) {
+  const { actor, isFetching } = useActor();
+  const validatedRef = useRef(false);
 
+  // Send heartbeat every 60 seconds
   useEffect(() => {
     if (!actor) return;
-    // Send immediately on login
-    safeHeartbeat(actor, userId);
-    // Then every 60 seconds
+    safeHeartbeat(actor, user.id);
     const interval = setInterval(() => {
-      safeHeartbeat(actor, userId);
+      safeHeartbeat(actor, user.id);
     }, 60_000);
     return () => clearInterval(interval);
-  }, [actor, userId]);
+  }, [actor, user.id]);
+
+  // Validate session against backend once actor is ready
+  useEffect(() => {
+    if (!actor || isFetching || validatedRef.current) return;
+    validatedRef.current = true;
+
+    async function validateSession() {
+      try {
+        // Call getUsersByPin to check if the stored PIN is still valid
+        const actorAny = actor as unknown as Record<string, unknown>;
+        const fn = actorAny.getUsersByPin;
+        if (typeof fn === "function") {
+          const result = await (
+            fn as (
+              pin: string,
+            ) => Promise<
+              { id: bigint; name: string; role: string; pin: string }[]
+            >
+          ).call(actor, user.pin);
+          const users = Array.isArray(result) ? result : [];
+
+          if (users.length === 0) {
+            // PIN no longer valid → clear session and show login
+            onInvalidSession();
+            return;
+          }
+
+          // Verify our user ID is still valid
+          const match = users.find((u) => {
+            try {
+              return BigInt(u.id.toString()) === BigInt(user.id.toString());
+            } catch {
+              return false;
+            }
+          });
+
+          if (!match) {
+            onInvalidSession();
+            return;
+          }
+        }
+        // Session is valid
+        onValidated();
+      } catch {
+        // Validation failed due to network/canister error
+        // Don't invalidate session on network errors - just mark as validated
+        onValidated();
+      }
+    }
+
+    // Small delay to let actor fully initialize
+    const t = setTimeout(validateSession, 1500);
+    return () => clearTimeout(t);
+  }, [actor, isFetching, user, onInvalidSession, onValidated]);
+
+  // If actor never loads (timeout), mark as validated to prevent infinite loading
+  useEffect(() => {
+    const fallback = setTimeout(() => {
+      if (!validatedRef.current) {
+        onValidated();
+      }
+    }, 8000);
+    return () => clearTimeout(fallback);
+  }, [onValidated]);
 
   return null;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
-    const raw = localStorage.getItem("gaushala_user");
-    if (!raw) return null;
-    return deserializeUser(raw);
-  });
+  const storedRaw = localStorage.getItem("gaushala_user");
+  const storedUser = storedRaw ? deserializeUser(storedRaw) : null;
+
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(storedUser);
+  // If there's no stored session, validation is immediately complete
+  const [sessionValidated, setSessionValidated] = useState(!storedUser);
 
   useEffect(() => {
     if (currentUser) {
@@ -82,13 +165,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentUser]);
 
-  function login(user: AuthUser) {
+  const login = useCallback((user: AuthUser) => {
     setCurrentUser(user);
-  }
+    setSessionValidated(true);
+  }, []);
 
-  function logout() {
+  const logout = useCallback(() => {
     setCurrentUser(null);
-  }
+    localStorage.removeItem("gaushala_user");
+    setSessionValidated(true);
+  }, []);
+
+  const handleInvalidSession = useCallback(() => {
+    setCurrentUser(null);
+    localStorage.removeItem("gaushala_user");
+    setSessionValidated(true);
+  }, []);
+
+  const handleValidated = useCallback(() => {
+    setSessionValidated(true);
+  }, []);
 
   const roleLower = currentUser?.role?.toLowerCase();
   const canEdit = roleLower === "admin" || roleLower === "editor";
@@ -96,9 +192,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ currentUser, login, logout, canEdit, isAdmin }}
+      value={{ currentUser, sessionValidated, login, logout, canEdit, isAdmin }}
     >
-      {currentUser && <HeartbeatSender userId={currentUser.id} />}
+      {currentUser && !sessionValidated && (
+        <SessionManager
+          user={currentUser}
+          onInvalidSession={handleInvalidSession}
+          onValidated={handleValidated}
+        />
+      )}
       {children}
     </AuthContext.Provider>
   );

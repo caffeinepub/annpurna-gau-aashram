@@ -14,37 +14,18 @@ import { Milk, MilkOff, Moon, Sun } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { Cow } from "../backend.d";
-import { useGetAllCows } from "../hooks/useQueries";
+import type { Cow, MilkRecord } from "../backend.d";
+import {
+  useAddMilkRecord,
+  useGetAllCows,
+  useGetMilkRecordsByDate,
+  useGetTodayMilkRecords,
+} from "../hooks/useQueries";
 import { useLang } from "../lib/LanguageContext";
 
-// ── AGA ID helper ─────────────────────────────────────────────────────
-function getAgpId(cow: Cow): string {
+// ── AGA ID helper ──────────────────────────────────────────────────────
+function getAgaId(cow: Cow): string {
   return `AGA${String(cow.id).padStart(5, "0")}`;
-}
-
-// ── localStorage helpers ──────────────────────────────────────────────
-interface MilkEntry {
-  morning: number;
-  evening: number;
-}
-
-function getMilkKey(cowId: string, date: string) {
-  return `milk-${cowId}-${date}`;
-}
-
-function getStoredMilk(cowId: string, date: string): MilkEntry {
-  try {
-    const raw = localStorage.getItem(getMilkKey(cowId, date));
-    if (!raw) return { morning: 0, evening: 0 };
-    return JSON.parse(raw) as MilkEntry;
-  } catch {
-    return { morning: 0, evening: 0 };
-  }
-}
-
-function storeMilk(cowId: string, date: string, entry: MilkEntry) {
-  localStorage.setItem(getMilkKey(cowId, date), JSON.stringify(entry));
 }
 
 // Format date as YYYY-MM-DD
@@ -59,43 +40,73 @@ function todayKey() {
   return dateToKey(new Date());
 }
 
-// ── Component ─────────────────────────────────────────────────────────
+function getRecordForCow(
+  records: MilkRecord[],
+  cowId: bigint,
+): MilkRecord | undefined {
+  return records.find((r) => r.cowId === cowId);
+}
+
+// ── Component ──────────────────────────────────────────────────────────
 export default function MilkManagement() {
   const { t, lang } = useLang();
-  const { data: allCows = [], isLoading } = useGetAllCows();
+  const { data: allCows = [], isLoading: cowsLoading } = useGetAllCows();
 
   const [selectedDate, setSelectedDate] = useState<string>(todayKey());
+  const isToday = selectedDate === todayKey();
+
+  // Use today-specific hook when date is today, otherwise date-specific hook
+  const { data: todayRecords = [], isLoading: todayLoading } =
+    useGetTodayMilkRecords();
+  const { data: dateRecords = [], isLoading: dateLoading } =
+    useGetMilkRecordsByDate(selectedDate);
+
+  const records: MilkRecord[] = isToday ? todayRecords : dateRecords;
+  const isLoading = cowsLoading || (isToday ? todayLoading : dateLoading);
+
+  const addMilkRecord = useAddMilkRecord();
+
   const [sheetOpen, setSheetOpen] = useState(false);
-  // savedRows: persists until date changes (no auto-clear)
+  // savedRows: set of cowIds that were just saved (reset on date change)
   const [savedRows, setSavedRows] = useState<Set<string>>(new Set());
 
-  // Only show Lactating cows
-  const lactatingCows = allCows.filter((c) => c.healthStatus === "Lactating");
-
-  // ── Inline edit state: cowId → {morning, evening} ──────────────────
+  // Inline edit state: cowId → {morning, evening}
   const [inlineValues, setInlineValues] = useState<
     Record<string, { morning: string; evening: string }>
   >({});
 
-  // Get current value for a cow (inline > localStorage)
+  // Reset inline values when date changes
+  const prevDateRef = useState(() => selectedDate);
+  if (prevDateRef[0] !== selectedDate) {
+    prevDateRef[1](selectedDate);
+    setInlineValues({});
+    setSavedRows(new Set());
+  }
+
+  // Only show Lactating (Dujni) cows
+  const lactatingCows = allCows.filter(
+    (c) => c.healthStatus === "Lactating" || c.healthStatus === "दूजनी",
+  );
+
+  // Get current inline value (inline state takes priority over backend record)
   function getMorning(cow: Cow): string {
     const id = cow.id.toString();
     if (inlineValues[id]?.morning !== undefined)
       return inlineValues[id].morning;
-    const stored = getStoredMilk(id, selectedDate);
-    return stored.morning > 0 ? stored.morning.toString() : "";
+    const rec = getRecordForCow(records, cow.id);
+    return rec && rec.morning > 0 ? rec.morning.toString() : "";
   }
+
   function getEvening(cow: Cow): string {
     const id = cow.id.toString();
     if (inlineValues[id]?.evening !== undefined)
       return inlineValues[id].evening;
-    const stored = getStoredMilk(id, selectedDate);
-    return stored.evening > 0 ? stored.evening.toString() : "";
+    const rec = getRecordForCow(records, cow.id);
+    return rec && rec.evening > 0 ? rec.evening.toString() : "";
   }
 
   function setMorning(cow: Cow, val: string) {
     const id = cow.id.toString();
-    // Reset saved state when user edits
     setSavedRows((prev) => {
       const next = new Set(prev);
       next.delete(id);
@@ -106,9 +117,9 @@ export default function MilkManagement() {
       [id]: { morning: val, evening: prev[id]?.evening ?? getEvening(cow) },
     }));
   }
+
   function setEvening(cow: Cow, val: string) {
     const id = cow.id.toString();
-    // Reset saved state when user edits
     setSavedRows((prev) => {
       const next = new Set(prev);
       next.delete(id);
@@ -120,24 +131,39 @@ export default function MilkManagement() {
     }));
   }
 
-  function saveInline(cow: Cow) {
+  const currentUser = (() => {
+    try {
+      const s = localStorage.getItem("gau_session");
+      return s ? (JSON.parse(s) as { name: string }).name : "Admin";
+    } catch {
+      return "Admin";
+    }
+  })();
+
+  async function saveInline(cow: Cow) {
     const id = cow.id.toString();
     const morning = Number.parseFloat(getMorning(cow)) || 0;
     const evening = Number.parseFloat(getEvening(cow)) || 0;
-    storeMilk(id, selectedDate, { morning, evening });
-    // Mark as saved permanently (no timeout - stays until date changes)
-    setSavedRows((prev) => new Set(prev).add(id));
+    try {
+      await addMilkRecord.mutateAsync({
+        cowId: cow.id,
+        cowName: cow.name,
+        date: selectedDate,
+        morning,
+        evening,
+        changedBy: currentUser,
+      });
+      setSavedRows((prev) => new Set(prev).add(id));
+    } catch {
+      toast.error(lang === "hi" ? "सहेजने में त्रुटि" : "Save failed");
+    }
   }
 
   // ── Totals ─────────────────────────────────────────────────────────
   const totals = lactatingCows.reduce(
     (acc, cow) => {
-      const m =
-        Number.parseFloat(getMorning(cow)) ||
-        getStoredMilk(cow.id.toString(), selectedDate).morning;
-      const e =
-        Number.parseFloat(getEvening(cow)) ||
-        getStoredMilk(cow.id.toString(), selectedDate).evening;
+      const m = Number.parseFloat(getMorning(cow)) || 0;
+      const e = Number.parseFloat(getEvening(cow)) || 0;
       acc.morning += m;
       acc.evening += e;
       return acc;
@@ -145,38 +171,49 @@ export default function MilkManagement() {
     { morning: 0, evening: 0 },
   );
 
-  // ── Bulk entry sheet state ─────────────────────────────────────────
+  // ── Bulk entry sheet ───────────────────────────────────────────────
   const [bulkValues, setBulkValues] = useState<
     Record<string, { morning: string; evening: string }>
   >({});
 
   function openBulkSheet() {
-    // Pre-fill sheet with stored values
     const init: Record<string, { morning: string; evening: string }> = {};
     for (const cow of lactatingCows) {
       const id = cow.id.toString();
-      const stored = getStoredMilk(id, selectedDate);
+      const rec = getRecordForCow(records, cow.id);
       init[id] = {
-        morning: stored.morning > 0 ? stored.morning.toString() : "",
-        evening: stored.evening > 0 ? stored.evening.toString() : "",
+        morning: rec && rec.morning > 0 ? rec.morning.toString() : "",
+        evening: rec && rec.evening > 0 ? rec.evening.toString() : "",
       };
     }
     setBulkValues(init);
     setSheetOpen(true);
   }
 
-  function saveBulkEntry() {
-    for (const cow of lactatingCows) {
-      const id = cow.id.toString();
-      const morning = Number.parseFloat(bulkValues[id]?.morning ?? "") || 0;
-      const evening = Number.parseFloat(bulkValues[id]?.evening ?? "") || 0;
-      storeMilk(id, selectedDate, { morning, evening });
-      setSavedRows((prev) => new Set(prev).add(id));
+  async function saveBulkEntry() {
+    try {
+      await Promise.all(
+        lactatingCows.map((cow) => {
+          const id = cow.id.toString();
+          const morning = Number.parseFloat(bulkValues[id]?.morning ?? "") || 0;
+          const evening = Number.parseFloat(bulkValues[id]?.evening ?? "") || 0;
+          return addMilkRecord.mutateAsync({
+            cowId: cow.id,
+            cowName: cow.name,
+            date: selectedDate,
+            morning,
+            evening,
+            changedBy: currentUser,
+          });
+        }),
+      );
+      setSavedRows(new Set(lactatingCows.map((c) => c.id.toString())));
+      setInlineValues({});
+      setSheetOpen(false);
+      toast.success(t("milkSaved"));
+    } catch {
+      toast.error(lang === "hi" ? "सहेजने में त्रुटि" : "Save failed");
     }
-    // Flush inline edits to show new saved values
-    setInlineValues({});
-    setSheetOpen(false);
-    toast.success(t("milkSaved"));
   }
 
   return (
@@ -223,11 +260,7 @@ export default function MilkManagement() {
           data-ocid="milk.input"
           type="date"
           value={selectedDate}
-          onChange={(e) => {
-            setSelectedDate(e.target.value);
-            setInlineValues({});
-            setSavedRows(new Set()); // reset saved state when date changes
-          }}
+          onChange={(e) => setSelectedDate(e.target.value)}
           className="flex-1 bg-transparent text-sm font-medium text-foreground border-none outline-none cursor-pointer"
           max={todayKey()}
         />
@@ -341,6 +374,7 @@ export default function MilkManagement() {
                   (Number.parseFloat(morning) || 0) +
                   (Number.parseFloat(evening) || 0);
                 const isSaved = savedRows.has(cow.id.toString());
+                const isSaving = addMilkRecord.isPending;
                 return (
                   <motion.tr
                     key={cow.id.toString()}
@@ -362,7 +396,7 @@ export default function MilkManagement() {
                             {cow.name}
                           </p>
                           <p className="text-[10px] text-green-700 font-mono font-medium">
-                            {getAgpId(cow)}
+                            {getAgaId(cow)}
                           </p>
                         </div>
                       </div>
@@ -407,6 +441,7 @@ export default function MilkManagement() {
                       <Button
                         size="sm"
                         variant="outline"
+                        disabled={isSaving}
                         className={cn(
                           "h-8 text-xs px-3 transition-all duration-200",
                           isSaved
@@ -493,7 +528,7 @@ export default function MilkManagement() {
                         {cow.name}
                       </p>
                       <p className="text-[10px] text-green-700 font-mono font-medium">
-                        {getAgpId(cow)}
+                        {getAgaId(cow)}
                       </p>
                     </div>
                   </div>
@@ -563,6 +598,7 @@ export default function MilkManagement() {
             </Button>
             <Button
               onClick={saveBulkEntry}
+              disabled={addMilkRecord.isPending}
               data-ocid="milk.submit_button"
               className="flex-1 font-semibold"
               style={{ background: "oklch(0.65 0.2 55)", color: "white" }}

@@ -16,17 +16,17 @@ export interface Announcement {
   'title' : string,
   'content' : string,
   'titleHindi' : string,
-  'date' : Time,
+  'date' : Timestamp,
   'isActive' : boolean,
 }
 export interface Calf {
   'id' : bigint,
   'birthYear' : bigint,
-  'cowId' : bigint,
+  'cowId' : CowId,
   'gender' : string,
   'notes' : string,
   'birthMonth' : bigint,
-  'addedDate' : Time,
+  'addedDate' : Timestamp,
   'tagNumber' : string,
 }
 export interface ChangeLog {
@@ -34,24 +34,25 @@ export interface ChangeLog {
   'entity' : string,
   'userName' : string,
   'action' : string,
-  'timestamp' : Time,
+  'timestamp' : Timestamp,
   'details' : string,
   'entityName' : string,
 }
 export interface Cow {
-  'id' : bigint,
+  'id' : CowId,
   'age' : bigint,
   'name' : string,
   'description' : string,
   'healthStatus' : string,
-  'addedDate' : Time,
+  'addedDate' : Timestamp,
   'breed' : string,
   'tagNumber' : string,
   'qrCode' : string,
 }
+export type CowId = bigint;
 export interface Donation {
   'id' : bigint,
-  'date' : Time,
+  'date' : Timestamp,
   'donorName' : string,
   'message' : string,
   'amount' : number,
@@ -60,7 +61,7 @@ export interface Donation {
 export interface FeedHistory {
   'id' : bigint,
   'action' : string,
-  'date' : Time,
+  'date' : Timestamp,
   'feedType' : string,
   'recordedBy' : string,
   'notes' : string,
@@ -68,7 +69,7 @@ export interface FeedHistory {
 }
 export interface FeedStock {
   'id' : bigint,
-  'lastUpdated' : Time,
+  'lastUpdated' : Timestamp,
   'feedType' : string,
   'updatedBy' : string,
   'totalStock' : number,
@@ -86,8 +87,8 @@ export interface GaushaalaProfile {
 export interface HealthRecord {
   'id' : bigint,
   'status' : string,
-  'date' : Time,
-  'cowId' : bigint,
+  'date' : Timestamp,
+  'cowId' : CowId,
   'vetName' : string,
   'notes' : string,
 }
@@ -98,16 +99,17 @@ export interface MilkRecord {
   'changedBy' : string,
   'cowName' : string,
   'date' : string,
-  'cowId' : bigint,
-  'addedDate' : Time,
+  'cowId' : CowId,
+  'addedDate' : Timestamp,
 }
-export type Time = bigint;
+export type Timestamp = bigint;
 export interface User {
-  'id' : bigint,
+  'id' : UserId,
   'pin' : string,
   'name' : string,
   'role' : string,
 }
+export type UserId = bigint;
 export interface _SERVICE {
   'addAnnouncement' : ActorMethod<
     [string, string, string, string, boolean, string],
@@ -170,7 +172,7 @@ export interface _SERVICE {
     [string, number, string, string],
     undefined
   >,
-  'sendHeartbeat' : ActorMethod<[bigint], undefined>,
+  'sendHeartbeat' : ActorMethod<[bigint], boolean>,
   'updateCow' : ActorMethod<
     [bigint, string, string, bigint, string, string, string, string, string],
     undefined

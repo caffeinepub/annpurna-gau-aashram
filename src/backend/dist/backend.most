@@ -1,0 +1,316 @@
+// Version: 3.0.0
+type Announcement__118666094 =
+  {
+    content : Text;
+    contentHindi : Text;
+    date : Timestamp__301639476;
+    id : Nat;
+    isActive : Bool;
+    title : Text;
+    titleHindi : Text
+  };
+type Calf__452968593 =
+  {
+    addedDate : Timestamp__301639476;
+    birthMonth : Nat;
+    birthYear : Nat;
+    cowId : CowId__655964504;
+    gender : Text;
+    id : Nat;
+    notes : Text;
+    tagNumber : Text
+  };
+type ChangeLog__219804085 =
+  {
+    action : Text;
+    details : Text;
+    entity : Text;
+    entityName : Text;
+    id : Nat;
+    timestamp : Timestamp__301639476;
+    userName : Text
+  };
+type CowId__655964504 = Nat;
+type Cow__763399438 =
+  {
+    addedDate : Timestamp__301639476;
+    age : Nat;
+    breed : Text;
+    description : Text;
+    healthStatus : Text;
+    id : CowId__655964504;
+    name : Text;
+    qrCode : Text;
+    tagNumber : Text
+  };
+type Donation__23568781 =
+  {
+    amount : Float;
+    date : Timestamp__301639476;
+    donorName : Text;
+    id : Nat;
+    message : Text;
+    purpose : Text
+  };
+type FeedHistory__79343819 =
+  {
+    action : Text;
+    date : Timestamp__301639476;
+    feedType : Text;
+    id : Nat;
+    notes : Text;
+    quantity : Float;
+    recordedBy : Text
+  };
+type FeedStock__488555157 =
+  {
+    dailyPerCow : Float;
+    feedType : Text;
+    id : Nat;
+    lastUpdated : Timestamp__301639476;
+    totalStock : Float;
+    updatedBy : Text
+  };
+type HealthRecord__731453503 =
+  {
+    cowId : CowId__655964504;
+    date : Timestamp__301639476;
+    id : Nat;
+    notes : Text;
+    status : Text;
+    vetName : Text
+  };
+type Int__270357528 = Int__616954475;
+type Int__616954475 = Int;
+type MilkRecord__451976543 =
+  {
+    addedDate : Timestamp__301639476;
+    changedBy : Text;
+    cowId : CowId__655964504;
+    cowName : Text;
+    date : Text;
+    evening : Float;
+    id : Nat;
+    morning : Float
+  };
+type Nat__490723111 = Nat__920180692;
+type Nat__920180692 = Nat;
+type OldAnnouncement__738661299 =
+  {
+    content : Text;
+    contentHindi : Text;
+    date : Time__900049286;
+    id : Nat;
+    isActive : Bool;
+    title : Text;
+    titleHindi : Text
+  };
+type OldCalf__623306074 =
+  {
+    addedDate : Time__900049286;
+    birthMonth : Nat;
+    birthYear : Nat;
+    cowId : Nat;
+    gender : Text;
+    id : Nat;
+    notes : Text;
+    tagNumber : Text
+  };
+type OldChangeLog__121950616 =
+  {
+    action : Text;
+    details : Text;
+    entity : Text;
+    entityName : Text;
+    id : Nat;
+    timestamp : Time__900049286;
+    userName : Text
+  };
+type OldCow__96814450 =
+  {
+    addedDate : Time__900049286;
+    age : Nat;
+    breed : Text;
+    description : Text;
+    healthStatus : Text;
+    id : Nat;
+    name : Text;
+    qrCode : Text;
+    tagNumber : Text
+  };
+type OldDonation__436521540 =
+  {
+    amount : Float;
+    date : Time__900049286;
+    donorName : Text;
+    id : Nat;
+    message : Text;
+    purpose : Text
+  };
+type OldFeedHistory__49539903 =
+  {
+    action : Text;
+    date : Time__900049286;
+    feedType : Text;
+    id : Nat;
+    notes : Text;
+    quantity : Float;
+    recordedBy : Text
+  };
+type OldFeedStock__548965024 =
+  {
+    dailyPerCow : Float;
+    feedType : Text;
+    id : Nat;
+    lastUpdated : Time__900049286;
+    totalStock : Float;
+    updatedBy : Text
+  };
+type OldGaushaalaProfile__541407830 =
+  {
+    address : Text;
+    description : Text;
+    descriptionHindi : Text;
+    logoBase64 : Text;
+    name : Text;
+    nameHindi : Text;
+    phone : Text
+  };
+type OldHealthRecord__868954009 =
+  {
+    cowId : Nat;
+    date : Time__900049286;
+    id : Nat;
+    notes : Text;
+    status : Text;
+    vetName : Text
+  };
+type OldMilkRecord__659089568 =
+  {
+    addedDate : Time__900049286;
+    changedBy : Text;
+    cowId : Nat;
+    cowName : Text;
+    date : Text;
+    evening : Float;
+    id : Nat;
+    morning : Float
+  };
+type OldUser__655922588 = {id : Nat; name : Text; pin : Text; role : Text};
+type Time__796480547 = Int__270357528;
+type Time__900049286 = Time__796480547;
+type Timestamp__301639476 = Time__900049286;
+type UserId__158757552 = Nat;
+type User__640040378 =
+  {id : UserId__158757552; name : Text; pin : Text; role : Text};
+actor ({
+  in MAX_USERS : Nat;
+  in var announcementIdCounter : Nat;
+  in var announcementsArr : [OldAnnouncement__738661299];
+  in var calfIdCounter : Nat;
+  in var calvesArr : [OldCalf__623306074];
+  in var changeLogIdCounter : Nat;
+  in var changeLogsArr : [OldChangeLog__121950616];
+  in var cowIdCounter : Nat;
+  in var cowsArr : [OldCow__96814450];
+  in var donationIdCounter : Nat;
+  in var donationsArr : [OldDonation__436521540];
+  in var feedHistoriesArr : [OldFeedHistory__49539903];
+  in var feedHistoryIdCounter : Nat;
+  in var feedStockIdCounter : Nat;
+  in var feedStocksArr : [OldFeedStock__548965024];
+  in var gaushaalaProfile : OldGaushaalaProfile__541407830;
+  in var healthRecordIdCounter : Nat;
+  in var healthRecordsArr : [OldHealthRecord__868954009];
+  in var milkRecordIdCounter : Nat;
+  in var milkRecordsArr : [OldMilkRecord__659089568];
+  in var userHeartbeatsArr : [(Nat, Time__900049286)];
+  in var userIdCounter : Nat;
+  in var usersArr : [OldUser__655922588]
+}, {
+  stable var announcementIdCounter : Nat;
+  stable announcements :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?Announcement__118666094]];
+      var elementIndex : Nat__490723111
+    };
+  stable var calfIdCounter : Nat;
+  stable calves :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?Calf__452968593]];
+      var elementIndex : Nat__490723111
+    };
+  stable var changeLogIdCounter : Nat;
+  stable changeLogs :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?ChangeLog__219804085]];
+      var elementIndex : Nat__490723111
+    };
+  stable var cowIdCounter : Nat;
+  stable cows :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?Cow__763399438]];
+      var elementIndex : Nat__490723111
+    };
+  stable var donationIdCounter : Nat;
+  stable donations :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?Donation__23568781]];
+      var elementIndex : Nat__490723111
+    };
+  stable feedHistories :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?FeedHistory__79343819]];
+      var elementIndex : Nat__490723111
+    };
+  stable var feedHistoryIdCounter : Nat;
+  stable feedStocks :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?FeedStock__488555157]];
+      var elementIndex : Nat__490723111
+    };
+  stable var healthRecordIdCounter : Nat;
+  stable healthRecords :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?HealthRecord__731453503]];
+      var elementIndex : Nat__490723111
+    };
+  stable heartbeats :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?(Nat, Int)]];
+      var elementIndex : Nat__490723111
+    };
+  stable var milkRecordIdCounter : Nat;
+  stable milkRecords :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?MilkRecord__451976543]];
+      var elementIndex : Nat__490723111
+    };
+  stable var profile :
+    {
+      address : Text;
+      description : Text;
+      descriptionHindi : Text;
+      logoBase64 : Text;
+      name : Text;
+      nameHindi : Text;
+      phone : Text
+    };
+  stable var userIdCounter : Nat;
+  stable users :
+    {
+      var blockIndex : Nat__490723111;
+      var blocks : [var [var ?User__640040378]];
+      var elementIndex : Nat__490723111
+    }
+}) ;

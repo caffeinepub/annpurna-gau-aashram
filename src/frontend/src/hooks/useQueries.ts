@@ -8,6 +8,7 @@ import type {
   FeedHistory,
   FeedStock,
   HealthRecord,
+  MilkRecord,
   User,
 } from "../backend.d";
 import { useActor } from "./useActor";
@@ -530,6 +531,78 @@ export function useUpdateFeedStock() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["feedStocks"] }).catch(() => {});
       qc.invalidateQueries({ queryKey: ["feedHistory"] }).catch(() => {});
+    },
+  });
+}
+
+// ── Milk Records ───────────────────────────────────────────────────────────────────────
+export function useGetTodayMilkRecords() {
+  const { actor, isFetching } = useActor();
+  return useQuery<MilkRecord[]>({
+    queryKey: ["milk", "today"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getTodayMilkRecords();
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 30000,
+  });
+}
+
+export function useGetMilkRecordsByDate(date: string) {
+  const { actor, isFetching } = useActor();
+  return useQuery<MilkRecord[]>({
+    queryKey: ["milk", "date", date],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getMilkRecordsByDate(date);
+    },
+    enabled: !!actor && !isFetching,
+    refetchInterval: 30000,
+  });
+}
+
+export function useAddMilkRecord() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      cowId: bigint;
+      cowName: string;
+      date: string;
+      morning: number;
+      evening: number;
+      changedBy: string;
+    }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.addMilkRecord(
+        data.cowId,
+        data.cowName,
+        data.date,
+        data.morning,
+        data.evening,
+        data.changedBy,
+      );
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["milk", "today"] }).catch(() => {});
+      qc.invalidateQueries({
+        queryKey: ["milk", "date", variables.date],
+      }).catch(() => {});
+    },
+  });
+}
+
+export function useDeleteMilkRecord() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { id: bigint; changedBy: string }) => {
+      if (!actor) throw new Error("No actor");
+      return actor.deleteMilkRecord(data.id, data.changedBy);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["milk"] }).catch(() => {});
     },
   });
 }

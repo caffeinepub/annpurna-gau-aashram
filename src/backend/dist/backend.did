@@ -1,0 +1,169 @@
+type UserId = nat;
+type User = 
+ record {
+   id: UserId;
+   name: text;
+   pin: text;
+   role: text;
+ };
+type Timestamp = int;
+type MilkRecord = 
+ record {
+   addedDate: Timestamp;
+   changedBy: text;
+   cowId: CowId;
+   cowName: text;
+   date: text;
+   evening: float64;
+   id: nat;
+   morning: float64;
+ };
+type HealthRecord = 
+ record {
+   cowId: CowId;
+   date: Timestamp;
+   id: nat;
+   notes: text;
+   status: text;
+   vetName: text;
+ };
+type GaushaalaProfile = 
+ record {
+   address: text;
+   description: text;
+   descriptionHindi: text;
+   logoBase64: text;
+   name: text;
+   nameHindi: text;
+   phone: text;
+ };
+type FeedStock = 
+ record {
+   dailyPerCow: float64;
+   feedType: text;
+   id: nat;
+   lastUpdated: Timestamp;
+   totalStock: float64;
+   updatedBy: text;
+ };
+type FeedHistory = 
+ record {
+   action: text;
+   date: Timestamp;
+   feedType: text;
+   id: nat;
+   notes: text;
+   quantity: float64;
+   recordedBy: text;
+ };
+type Donation = 
+ record {
+   amount: float64;
+   date: Timestamp;
+   donorName: text;
+   id: nat;
+   message: text;
+   purpose: text;
+ };
+type CowId = nat;
+type Cow = 
+ record {
+   addedDate: Timestamp;
+   age: nat;
+   breed: text;
+   description: text;
+   healthStatus: text;
+   id: CowId;
+   name: text;
+   qrCode: text;
+   tagNumber: text;
+ };
+type ChangeLog = 
+ record {
+   action: text;
+   details: text;
+   entity: text;
+   entityName: text;
+   id: nat;
+   timestamp: Timestamp;
+   userName: text;
+ };
+type Calf = 
+ record {
+   addedDate: Timestamp;
+   birthMonth: nat;
+   birthYear: nat;
+   cowId: CowId;
+   gender: text;
+   id: nat;
+   notes: text;
+   tagNumber: text;
+ };
+type Announcement = 
+ record {
+   content: text;
+   contentHindi: text;
+   date: Timestamp;
+   id: nat;
+   isActive: bool;
+   title: text;
+   titleHindi: text;
+ };
+service : {
+  addAnnouncement: (title: text, titleHindi: text, content: text,
+   contentHindi: text, isActive: bool, changedBy: text) -> (nat);
+  addCalf: (cowId: nat, birthMonth: nat, birthYear: nat, gender: text,
+   tagNumber: text, notes: text, changedBy: text) -> (nat);
+  addChangeLog: (userName: text, action: text, entity: text, entityName:
+   text, details: text) -> ();
+  addCow: (name: text, breed: text, age: nat, healthStatus: text,
+   description: text, tagNumber: text, qrCode: text, changedBy: text) ->
+   (nat);
+  addDonation: (donorName: text, amount: float64, message: text, purpose:
+   text, changedBy: text) -> (nat);
+  addFeedStockQuantity: (feedType: text, quantity: float64, notes: text,
+   recordedBy: text) -> ();
+  addHealthRecord: (cowId: nat, notes: text, status: text, vetName: text,
+   changedBy: text) -> (nat);
+  addMilkRecord: (cowId: nat, cowName: text, date: text, morning: float64,
+   evening: float64, changedBy: text) -> (nat);
+  changeUserPin: (id: nat, newPin: text, changedBy: text) -> ();
+  createUser: (name: text, role: text, pin: text) -> (nat);
+  deleteCalf: (id: nat, changedBy: text) -> ();
+  deleteCow: (id: nat, changedBy: text) -> ();
+  deleteMilkRecord: (id: nat, changedBy: text) -> ();
+  deleteUser: (id: nat) -> ();
+  ensureDefaultAdmin: () -> ();
+  getActiveAnnouncements: () -> (vec Announcement) query;
+  getAllChangeLogs: () -> (vec ChangeLog) query;
+  getAllCows: () -> (vec Cow) query;
+  getAllDonations: () -> (vec Donation) query;
+  getAllMilkRecords: () -> (vec MilkRecord) query;
+  getAllUsers: () -> (vec User) query;
+  getAnnouncement: (id: nat) -> (Announcement) query;
+  getCalvesByCow: (cowId: nat) -> (vec Calf) query;
+  getCow: (id: nat) -> (Cow) query;
+  getCowByTag: (tag: text) -> (opt Cow) query;
+  getDonation: (id: nat) -> (Donation) query;
+  getFeedHistory: () -> (vec FeedHistory) query;
+  getFeedStocks: () -> (vec FeedStock) query;
+  getHealthRecord: (id: nat) -> (HealthRecord) query;
+  getHealthRecordsByCow: (cowId: nat) -> (vec HealthRecord) query;
+  getMilkRecordsByDate: (date: text) -> (vec MilkRecord) query;
+  getOnlineUsers: () -> (vec nat) query;
+  getProfile: () -> (GaushaalaProfile) query;
+  getTodayMilkRecords: () -> (vec MilkRecord) query;
+  getUserByPin: (pin: text) -> (opt User) query;
+  getUsersByPin: (pin: text) -> (vec User) query;
+  recordFeedConsumption: (feedType: text, quantity: float64, notes: text,
+   recordedBy: text) -> ();
+  sendHeartbeat: (userId: nat) -> (bool);
+  updateCow: (id: nat, name: text, breed: text, age: nat, healthStatus: 
+   text, description: text, tagNumber: text, qrCode: text, changedBy:
+   text) -> ();
+  updateFeedStock: (feedType: text, totalStock: float64, dailyPerCow:
+   float64, updatedBy: text) -> ();
+  updateProfile: (name: text, nameHindi: text, description: text,
+   descriptionHindi: text, phone: text, address: text, logoBase64: text,
+   changedBy: text) -> ();
+}

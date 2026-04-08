@@ -89,27 +89,9 @@ export class ExternalBlob {
         return this;
     }
 }
-export interface MilkRecord {
-    id: bigint;
-    morning: number;
-    evening: number;
-    changedBy: string;
-    cowName: string;
-    date: string;
-    cowId: bigint;
-    addedDate: Time;
-}
-export interface Donation {
-    id: bigint;
-    date: Time;
-    donorName: string;
-    message: string;
-    amount: number;
-    purpose: string;
-}
-export type Time = bigint;
+export type Timestamp = bigint;
 export interface User {
-    id: bigint;
+    id: UserId;
     pin: string;
     name: string;
     role: string;
@@ -117,44 +99,33 @@ export interface User {
 export interface FeedHistory {
     id: bigint;
     action: string;
-    date: Time;
+    date: Timestamp;
     feedType: string;
     recordedBy: string;
     notes: string;
     quantity: number;
 }
-export interface Cow {
-    id: bigint;
-    age: bigint;
-    name: string;
-    description: string;
-    healthStatus: string;
-    addedDate: Time;
-    breed: string;
-    tagNumber: string;
-    qrCode: string;
-}
 export interface Calf {
     id: bigint;
     birthYear: bigint;
-    cowId: bigint;
+    cowId: CowId;
     gender: string;
     notes: string;
     birthMonth: bigint;
-    addedDate: Time;
+    addedDate: Timestamp;
     tagNumber: string;
 }
 export interface HealthRecord {
     id: bigint;
     status: string;
-    date: Time;
-    cowId: bigint;
+    date: Timestamp;
+    cowId: CowId;
     vetName: string;
     notes: string;
 }
 export interface FeedStock {
     id: bigint;
-    lastUpdated: Time;
+    lastUpdated: Timestamp;
     feedType: string;
     updatedBy: string;
     totalStock: number;
@@ -165,7 +136,7 @@ export interface ChangeLog {
     entity: string;
     userName: string;
     action: string;
-    timestamp: Time;
+    timestamp: Timestamp;
     details: string;
     entityName: string;
 }
@@ -178,15 +149,46 @@ export interface GaushaalaProfile {
     address: string;
     phone: string;
 }
+export type UserId = bigint;
+export interface MilkRecord {
+    id: bigint;
+    morning: number;
+    evening: number;
+    changedBy: string;
+    cowName: string;
+    date: string;
+    cowId: CowId;
+    addedDate: Timestamp;
+}
+export interface Donation {
+    id: bigint;
+    date: Timestamp;
+    donorName: string;
+    message: string;
+    amount: number;
+    purpose: string;
+}
+export interface Cow {
+    id: CowId;
+    age: bigint;
+    name: string;
+    description: string;
+    healthStatus: string;
+    addedDate: Timestamp;
+    breed: string;
+    tagNumber: string;
+    qrCode: string;
+}
 export interface Announcement {
     id: bigint;
     contentHindi: string;
     title: string;
     content: string;
     titleHindi: string;
-    date: Time;
+    date: Timestamp;
     isActive: boolean;
 }
+export type CowId = bigint;
 export interface backendInterface {
     addAnnouncement(title: string, titleHindi: string, content: string, contentHindi: string, isActive: boolean, changedBy: string): Promise<bigint>;
     addCalf(cowId: bigint, birthMonth: bigint, birthYear: bigint, gender: string, tagNumber: string, notes: string, changedBy: string): Promise<bigint>;
@@ -225,7 +227,7 @@ export interface backendInterface {
     getUserByPin(pin: string): Promise<User | null>;
     getUsersByPin(pin: string): Promise<Array<User>>;
     recordFeedConsumption(feedType: string, quantity: number, notes: string, recordedBy: string): Promise<void>;
-    sendHeartbeat(userId: bigint): Promise<void>;
+    sendHeartbeat(userId: bigint): Promise<boolean>;
     updateCow(id: bigint, name: string, breed: string, age: bigint, healthStatus: string, description: string, tagNumber: string, qrCode: string, changedBy: string): Promise<void>;
     updateFeedStock(feedType: string, totalStock: number, dailyPerCow: number, updatedBy: string): Promise<void>;
     updateProfile(name: string, nameHindi: string, description: string, descriptionHindi: string, phone: string, address: string, logoBase64: string, changedBy: string): Promise<void>;
@@ -751,7 +753,7 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async sendHeartbeat(arg0: bigint): Promise<void> {
+    async sendHeartbeat(arg0: bigint): Promise<boolean> {
         if (this.processError) {
             try {
                 const result = await this.actor.sendHeartbeat(arg0);

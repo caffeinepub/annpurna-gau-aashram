@@ -8,14 +8,14 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
-export const Time = IDL.Int;
+export const Timestamp = IDL.Int;
 export const Announcement = IDL.Record({
   'id' : IDL.Nat,
   'contentHindi' : IDL.Text,
   'title' : IDL.Text,
   'content' : IDL.Text,
   'titleHindi' : IDL.Text,
-  'date' : Time,
+  'date' : Timestamp,
   'isActive' : IDL.Bool,
 });
 export const ChangeLog = IDL.Record({
@@ -23,24 +23,25 @@ export const ChangeLog = IDL.Record({
   'entity' : IDL.Text,
   'userName' : IDL.Text,
   'action' : IDL.Text,
-  'timestamp' : Time,
+  'timestamp' : Timestamp,
   'details' : IDL.Text,
   'entityName' : IDL.Text,
 });
+export const CowId = IDL.Nat;
 export const Cow = IDL.Record({
-  'id' : IDL.Nat,
+  'id' : CowId,
   'age' : IDL.Nat,
   'name' : IDL.Text,
   'description' : IDL.Text,
   'healthStatus' : IDL.Text,
-  'addedDate' : Time,
+  'addedDate' : Timestamp,
   'breed' : IDL.Text,
   'tagNumber' : IDL.Text,
   'qrCode' : IDL.Text,
 });
 export const Donation = IDL.Record({
   'id' : IDL.Nat,
-  'date' : Time,
+  'date' : Timestamp,
   'donorName' : IDL.Text,
   'message' : IDL.Text,
   'amount' : IDL.Float64,
@@ -53,11 +54,12 @@ export const MilkRecord = IDL.Record({
   'changedBy' : IDL.Text,
   'cowName' : IDL.Text,
   'date' : IDL.Text,
-  'cowId' : IDL.Nat,
-  'addedDate' : Time,
+  'cowId' : CowId,
+  'addedDate' : Timestamp,
 });
+export const UserId = IDL.Nat;
 export const User = IDL.Record({
-  'id' : IDL.Nat,
+  'id' : UserId,
   'pin' : IDL.Text,
   'name' : IDL.Text,
   'role' : IDL.Text,
@@ -65,17 +67,17 @@ export const User = IDL.Record({
 export const Calf = IDL.Record({
   'id' : IDL.Nat,
   'birthYear' : IDL.Nat,
-  'cowId' : IDL.Nat,
+  'cowId' : CowId,
   'gender' : IDL.Text,
   'notes' : IDL.Text,
   'birthMonth' : IDL.Nat,
-  'addedDate' : Time,
+  'addedDate' : Timestamp,
   'tagNumber' : IDL.Text,
 });
 export const FeedHistory = IDL.Record({
   'id' : IDL.Nat,
   'action' : IDL.Text,
-  'date' : Time,
+  'date' : Timestamp,
   'feedType' : IDL.Text,
   'recordedBy' : IDL.Text,
   'notes' : IDL.Text,
@@ -83,7 +85,7 @@ export const FeedHistory = IDL.Record({
 });
 export const FeedStock = IDL.Record({
   'id' : IDL.Nat,
-  'lastUpdated' : Time,
+  'lastUpdated' : Timestamp,
   'feedType' : IDL.Text,
   'updatedBy' : IDL.Text,
   'totalStock' : IDL.Float64,
@@ -92,8 +94,8 @@ export const FeedStock = IDL.Record({
 export const HealthRecord = IDL.Record({
   'id' : IDL.Nat,
   'status' : IDL.Text,
-  'date' : Time,
-  'cowId' : IDL.Nat,
+  'date' : Timestamp,
+  'cowId' : CowId,
   'vetName' : IDL.Text,
   'notes' : IDL.Text,
 });
@@ -198,7 +200,7 @@ export const idlService = IDL.Service({
       [],
       [],
     ),
-  'sendHeartbeat' : IDL.Func([IDL.Nat], [], []),
+  'sendHeartbeat' : IDL.Func([IDL.Nat], [IDL.Bool], []),
   'updateCow' : IDL.Func(
       [
         IDL.Nat,
@@ -238,14 +240,14 @@ export const idlService = IDL.Service({
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
-  const Time = IDL.Int;
+  const Timestamp = IDL.Int;
   const Announcement = IDL.Record({
     'id' : IDL.Nat,
     'contentHindi' : IDL.Text,
     'title' : IDL.Text,
     'content' : IDL.Text,
     'titleHindi' : IDL.Text,
-    'date' : Time,
+    'date' : Timestamp,
     'isActive' : IDL.Bool,
   });
   const ChangeLog = IDL.Record({
@@ -253,24 +255,25 @@ export const idlFactory = ({ IDL }) => {
     'entity' : IDL.Text,
     'userName' : IDL.Text,
     'action' : IDL.Text,
-    'timestamp' : Time,
+    'timestamp' : Timestamp,
     'details' : IDL.Text,
     'entityName' : IDL.Text,
   });
+  const CowId = IDL.Nat;
   const Cow = IDL.Record({
-    'id' : IDL.Nat,
+    'id' : CowId,
     'age' : IDL.Nat,
     'name' : IDL.Text,
     'description' : IDL.Text,
     'healthStatus' : IDL.Text,
-    'addedDate' : Time,
+    'addedDate' : Timestamp,
     'breed' : IDL.Text,
     'tagNumber' : IDL.Text,
     'qrCode' : IDL.Text,
   });
   const Donation = IDL.Record({
     'id' : IDL.Nat,
-    'date' : Time,
+    'date' : Timestamp,
     'donorName' : IDL.Text,
     'message' : IDL.Text,
     'amount' : IDL.Float64,
@@ -283,11 +286,12 @@ export const idlFactory = ({ IDL }) => {
     'changedBy' : IDL.Text,
     'cowName' : IDL.Text,
     'date' : IDL.Text,
-    'cowId' : IDL.Nat,
-    'addedDate' : Time,
+    'cowId' : CowId,
+    'addedDate' : Timestamp,
   });
+  const UserId = IDL.Nat;
   const User = IDL.Record({
-    'id' : IDL.Nat,
+    'id' : UserId,
     'pin' : IDL.Text,
     'name' : IDL.Text,
     'role' : IDL.Text,
@@ -295,17 +299,17 @@ export const idlFactory = ({ IDL }) => {
   const Calf = IDL.Record({
     'id' : IDL.Nat,
     'birthYear' : IDL.Nat,
-    'cowId' : IDL.Nat,
+    'cowId' : CowId,
     'gender' : IDL.Text,
     'notes' : IDL.Text,
     'birthMonth' : IDL.Nat,
-    'addedDate' : Time,
+    'addedDate' : Timestamp,
     'tagNumber' : IDL.Text,
   });
   const FeedHistory = IDL.Record({
     'id' : IDL.Nat,
     'action' : IDL.Text,
-    'date' : Time,
+    'date' : Timestamp,
     'feedType' : IDL.Text,
     'recordedBy' : IDL.Text,
     'notes' : IDL.Text,
@@ -313,7 +317,7 @@ export const idlFactory = ({ IDL }) => {
   });
   const FeedStock = IDL.Record({
     'id' : IDL.Nat,
-    'lastUpdated' : Time,
+    'lastUpdated' : Timestamp,
     'feedType' : IDL.Text,
     'updatedBy' : IDL.Text,
     'totalStock' : IDL.Float64,
@@ -322,8 +326,8 @@ export const idlFactory = ({ IDL }) => {
   const HealthRecord = IDL.Record({
     'id' : IDL.Nat,
     'status' : IDL.Text,
-    'date' : Time,
-    'cowId' : IDL.Nat,
+    'date' : Timestamp,
+    'cowId' : CowId,
     'vetName' : IDL.Text,
     'notes' : IDL.Text,
   });
@@ -428,7 +432,7 @@ export const idlFactory = ({ IDL }) => {
         [],
         [],
       ),
-    'sendHeartbeat' : IDL.Func([IDL.Nat], [], []),
+    'sendHeartbeat' : IDL.Func([IDL.Nat], [IDL.Bool], []),
     'updateCow' : IDL.Func(
         [
           IDL.Nat,
